@@ -52,6 +52,25 @@ app = FastAPI()
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 templates = Jinja2Templates(directory="templates")
 
+# -----------------------------
+# TEMPLATES
+# -----------------------------
+templates = Jinja2Templates(directory="templates")
+
+
+def buscar_user_discord(user_id: str):
+    headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
+    r = requests.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers)
+    if r.status_code == 200:
+        data = r.json()
+        return {
+            "id": user_id,
+            "username": data.get("username"),
+            "global_name": data.get("global_name"),
+            "tag": f"{data.get('username')}#{data.get('discriminator')}"
+        }
+    return {"id": user_id, "username": None, "global_name": None, "tag": None}
+
 
 # ---------------------------------------------------
 # 🔗 Rota inicial
@@ -254,3 +273,33 @@ async def submit_form(
     except Exception as e:
         print("ERRO:", e)
         return JSONResponse(status_code=500, content={"error": str(e)})
+# -----------------------------
+# EXPORTAR CSV
+# -----------------------------
+@app.get("/export_csv")
+async def export_csv(discord_user: str = Cookie(None)):
+    if not discord_user or discord_user not in ADMINS:
+        return RedirectResponse(url="/")
+
+    output = StringIO()
+    writer = csv.writer(output)
+    # Cabeçalho
+    writer.writerow(["Nome", "Tema", "Avaliador", "Nota Conduta", "Nota Detenção", "Nota Incidente"])
+    for doc in db.collection("avaliacoes").stream():
+        d = doc.to_dict()
+        writer.writerow([
+            d.get("nome"),
+            d.get("tema"),
+            d.get("avaliador", {}).get("tag"),
+            d.get("conduta"),
+            d.get("nota_detencao"),
+            d.get("nota_incidente")
+        ])
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"})
+
+
+# -----------------------------
+# SERVIR FRONTEND
+# -----------------------------
+app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
