@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Painel Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background: #f4f6f8; padding: 20px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+button { padding: 8px 16px; margin-left: 10px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
+input { padding: 6px; width: 200px; margin-right: 10px; }
+.chart-container { width: 100%; max-width: 800px; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Painel Admin</h1>
+    <div>
+        <input type="text" id="search" placeholder="Buscar por nome, tema ou avaliador">
+        <button onclick="exportCSV()">Exportar CSV</button>
+        <button onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<table id="tableAvaliacoes">
+    <thead>
+        <tr>
+            <th onclick="sortTable(0)">Nome</th>
+            <th onclick="sortTable(1)">Tema</th>
+            <th onclick="sortTable(2)">Avaliador</th>
+            <th onclick="sortTable(3)">Nota Conduta</th>
+            <th onclick="sortTable(4)">Nota Detenção</th>
+            <th onclick="sortTable(5)">Nota Incidente</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in avaliacoes %}
+        <tr>
+            <td>{{ a.get('nome', 'N/A') }}</td>
+            <td>{{ a.get('tema', 'N/A') }}</td>
+            <td>{{ a.get('avaliador', {}).get('tag', 'Desconhecido') }}</td>
+            <td>{{ a.get('conduta', 0) }}</td>
+            <td>{{ a.get('nota_detencao', 0) }}</td>
+            <td>{{ a.get('nota_incidente', 0) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="chart-container">
+    <canvas id="chart"></canvas>
+</div>
+
+<script>
+// ------------------- FILTRO -------------------
+document.getElementById("search").addEventListener("input", function() {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll("#tableAvaliacoes tbody tr");
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+    });
+});
+
+// ------------------- ORDENAR TABELA -------------------
+function sortTable(colIndex) {
+    const table = document.getElementById("tableAvaliacoes");
+    let switching = true;
+    let dir = "asc";
+    while (switching) {
+        switching = false;
+        const rows = table.rows;
+        for (let i = 1; i < rows.length - 1; i++) {
+            let x = rows[i].cells[colIndex].innerText;
+            let y = rows[i + 1].cells[colIndex].innerText;
+            if (!isNaN(x) && !isNaN(y)) { x = parseFloat(x); y = parseFloat(y); }
+            let shouldSwitch = dir === "asc" ? x > y : x < y;
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+            }
+        }
+        if (!switching && dir === "asc") dir = "desc", switching = true;
+    }
+}
+
+// ------------------- EXPORT CSV -------------------
+function exportCSV() { window.location.href = "/export_csv"; }
+
+// ------------------- LOGOUT -------------------
+function logout() { window.location.href = "/frontend/index.html"; }
+
+// ------------------- GRÁFICO -------------------
+const data = {
+    labels: [
+        {% for a in avaliacoes %}"{{ a.get('nome', 'N/A') }}",{% endfor %}
+    ],
+    datasets: [{
+        label: 'Nota Conduta',
+        data: [{% for a in avaliacoes %}{{ a.get('conduta', 0) }},{% endfor %}],
+        backgroundColor: 'rgba(54, 162, 235, 0.5)'
+    },{
+        label: 'Nota Detenção',
+        data: [{% for a in avaliacoes %}{{ a.get('nota_detencao', 0) }},{% endfor %}],
+        backgroundColor: 'rgba(255, 99, 132, 0.5)'
+    },{
+        label: 'Nota Incidente',
+        data: [{% for a in avaliacoes %}{{ a.get('nota_incidente', 0) }},{% endfor %}],
+        backgroundColor: 'rgba(75, 192, 192, 0.5)'
+    }]
+};
+
+new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: data,
+    options: { responsive: true, scales: { y: { beginAtZero: true, max: 10 } } }
+});
+</script>
+</body>
+</html>

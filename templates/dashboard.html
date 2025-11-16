@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Avaliações</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+body { font-family: sans-serif; background: #f4f6f8; padding: 20px; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+th { background: #007bff; color: white; }
+tr:nth-child(even) { background: #f9f9f9; }
+</style>
+</head>
+<body>
+
+<h1>📋 Painel de Avaliações</h1>
+
+<table>
+  <tr>
+    <th>Nome</th>
+    <th>Tema</th>
+    <th>Avaliações</th>
+    <th>Assaltos</th>
+    <th>Abordagens</th>
+    <th>Avaliador</th>
+  </tr>
+  {% for a in avaliacoes %}
+  <tr>
+    <td>{{ a.nome }}</td>
+    <td>{{ a.tema }}</td>
+    <td>{{ a.avaliacoes_feitas }}</td>
+    <td>{{ a.assaltos }}</td>
+    <td>{{ a.abordagens }}</td>
+    <td>
+      {% if a.avaliador.username %}
+        {{ a.avaliador.username }} ({{ a.avaliador.tag }})
+      {% else %}
+        Desconhecido
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+</body>
+</html>

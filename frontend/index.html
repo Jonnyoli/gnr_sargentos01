@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Avaliação Completa</title>
+<style>
+  /* ===== Reset básico ===== */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  body {
+    background: #f4f6f8;
+    padding: 20px 10px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+
+  h1 {
+    text-align: center;
+    color: #222;
+    margin-bottom: 30px;
+    font-size: 2rem;
+  }
+
+  h2 {
+    color: #007bff;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    border-left: 5px solid #007bff;
+    padding-left: 12px;
+    font-size: 1.3rem;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    margin-top: 15px;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    transition: 0.3s;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0,123,255,0.3);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  button {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(90deg,#007bff,#0056b3);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 25px;
+    transition: 0.3s;
+  }
+
+  button:hover {
+    background: linear-gradient(90deg,#0056b3,#003f7f);
+  }
+
+  #resultado {
+    margin-top: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* ===== Cards para seções ===== */
+  .section-card {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  }
+
+  .section-card h2 {
+    border-left: 5px solid #007bff;
+    padding-left: 10px;
+  }
+</style>
+</head>
+
+<body>
+<header style="display:flex; justify-content:flex-end; padding:10px; margin-bottom:20px;">
+  <a href="/login/discord" style="text-decoration:none; display:flex; align-items:center; gap:8px; background:#7289DA; color:white; padding:8px 12px; border-radius:8px; font-weight:600;">
+    <img src="https://cdn.worldvectorlogo.com/logos/discord-1.svg" alt="Discord" style="height:24px;">
+    Login com Discord
+  </a>
+</header>
+
+<div class="container">
+  <h1>📋 Avaliação Completa do Guarda</h1>
+
+  <form id="avaliacaoForm">
+    <input type="hidden" id="user_id" name="user_id">
+
+    <!-- ====================== PARTE 1 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 1 — Geral</h2>
+      <label>Nome do avaliado *</label>
+      <input type="text" name="nome" required>
+      <label>Tema *</label>
+      <input type="text" name="tema" required>
+      <label>Quantas avaliações já realizou ao agente? *</label>
+      <input type="number" name="avaliacoes_feitas" required>
+      <label>Assaltos (quantidade) *</label>
+      <input type="number" name="assaltos" required>
+      <label>Abordagens (quantidade) *</label>
+      <input type="number" name="abordagens" required>
+    </div>
+
+    <!-- ====================== PARTE 2 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 2 — Rádio e Conduta</h2>
+      <label>Perseguições (quantidade) *</label>
+      <input type="number" name="perseg" required>
+      <label>Detenções (quantidade) *</label>
+      <input type="number" name="detencoes_count" required>
+      <label>Rádio (X/10) *</label>
+      <input type="number" max="10" min="0" name="radio" required>
+      <label>Descrição Rádio *</label>
+      <textarea name="radio_desc" required></textarea>
+      <label>Conduta (X/10) *</label>
+      <input type="number" max="10" min="0" name="conduta" required>
+    </div>
+
+    <!-- ====================== PARTE 3 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 3 — Detenção 1</h2>
+      <label>Descrição da conduta *</label>
+      <textarea name="conduta_desc" required></textarea>
+      <label>Detenção (X/10) *</label>
+      <input type="number" max="10" min="0" name="nota_detencao" required>
+      <label>Leu os direitos? *</label>
+      <select name="det1_leu_direitos" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Identificou o sujeito? *</label>
+      <select name="det1_identificou" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Apreendeu objetos? *</label>
+      <select name="det1_apreendeu" required>
+        <option>Sim</option><option>Não</option>	
+      </select>
+    </div>
+
+    <!-- ====================== PARTE 4 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 4 — Detenção 2</h2>
+      <label>Descrição da conduta *</label>
+      <textarea name="conduta_desc2" required></textarea>
+      <label>Detenção (X/10) *</label>
+      <input type="number" max="10" min="0" name="nota_detencao2" required>
+      <label>Leu os direitos? *</label>
+      <select name="det2_leu_direitos" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Identificou sujeito? *</label>
+      <select name="det2_identificou" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Apreendeu objetos? *</label>
+      <select name="det2_apreendeu" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+    </div>
+
+    <!-- ====================== PARTE 5 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 5 — Incidente</h2>
+      <label>Nota do incidente (X/10) *</label>
+      <input type="number" max="10" min="0" name="nota_incidente" required>
+      <label>Crimes cometidos? *</label>
+      <select name="crimes_yesno" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Foto do sujeito / bolso? *</label>
+      <select name="foto_yesno" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Seguiu layout padrão? *</label>
+      <select name="layout_yesno" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+      <label>Descrição detalhada correta? *</label>
+      <select name="descricao_yesno" required>
+        <option>Sim</option><option>Não</option>
+      </select>
+    </div>
+
+    <!-- ====================== PARTE 6 ====================== -->
+    <div class="section-card">
+      <h2>📋 Parte 6 — Finalização</h2>
+      <label>Erros cometidos no incidente</label>
+      <textarea name="incidente_erros"></textarea>
+      <label>Observação final *</label>
+      <textarea name="incidente_obs" required></textarea>
+    </div>
+
+    <button type="submit">Enviar Avaliação</button>
+    <p id="resultado"></p>
+  </form>
+</div>
+
+<script>
+  // pega user_id da URL
+  const urlParams = new URLSearchParams(window.location.search);
+  document.getElementById("user_id").value = urlParams.get("user_id");
+
+  // envio do formulário
+  document.getElementById("avaliacaoForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const res = await fetch("/submit", { method: "POST", body: formData });
+    const result = document.getElementById("resultado");
+
+    if (res.ok) {
+      result.textContent = "✅ Avaliação enviada!";
+      result.style.color = "green";
+    } else {
+      const data = await res.json();
+      result.textContent = `❌ Erro: ${data.error || 'Não enviado'}`;
+      result.style.color = "red";
+    }
+  });
+</script>
+</body>
+</html>
