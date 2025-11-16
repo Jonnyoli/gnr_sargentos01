@@ -1,13 +1,14 @@
-import os
-from fastapi import FastAPI, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Form, Request, Cookie
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
+import requests
 import firebase_admin
 from firebase_admin import credentials, firestore
-
-from requests_oauthlib import OAuth2Session
+import urllib.parse
+import csv
+from io import StringIO
+from fastapi.responses import StreamingResponse
 
 # ---------------------------------------------------
 # 🔐 Variáveis de ambiente
