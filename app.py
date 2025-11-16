@@ -1,8 +1,10 @@
 import os
 import requests
 import urllib.parse
-from fastapi import FastAPI, Form, Request, Cookie, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+import csv
+from io import StringIO
+from fastapi import FastAPI, Form, Request, Cookie
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -10,21 +12,20 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from requests_oauthlib import OAuth2Session
 
-
 # ---------------------------------------------------
 # 🔐 Variáveis de ambiente
 # ---------------------------------------------------
-
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = os.getenv("FRONTEND_URL") + "/callback"
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")  # webhook para enviar avaliações
 SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ADMINS = os.getenv("ADMINS", "").split(",")
 
 # ---------------------------------------------------
 # 🔥 Firestore
 # ---------------------------------------------------
-
 cred = credentials.Certificate({
     "type": "service_account",
     "project_id": os.environ["FIRESTORE_PROJECT_ID"],
@@ -46,18 +47,14 @@ db = firestore.client()
 # ---------------------------------------------------
 # 🌐 FastAPI
 # ---------------------------------------------------
-
 app = FastAPI()
 
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 templates = Jinja2Templates(directory="templates")
 
-# -----------------------------
-# TEMPLATES
-# -----------------------------
-templates = Jinja2Templates(directory="templates")
-
-
+# ---------------------------------------------------
+# Função para buscar usuário no Discord
+# ---------------------------------------------------
 def buscar_user_discord(user_id: str):
     headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
     r = requests.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers)
@@ -71,18 +68,15 @@ def buscar_user_discord(user_id: str):
         }
     return {"id": user_id, "username": None, "global_name": None, "tag": None}
 
-
 # ---------------------------------------------------
-# 🔗 Rota inicial
+# Rota inicial
 # ---------------------------------------------------
-
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-
 # ---------------------------------------------------
-# 🔐 Login Discord
+# Login Discord
 # ---------------------------------------------------
 @app.get("/login/discord")
 async def login_discord():
@@ -94,7 +88,6 @@ async def login_discord():
     }
     url = f"https://discord.com/api/oauth2/authorize?{urllib.parse.urlencode(params)}"
     return RedirectResponse(url)
-
 
 @app.get("/callback")
 async def discord_callback(code: str):
@@ -119,10 +112,9 @@ async def discord_callback(code: str):
     response.set_cookie(key="discord_user", value=user_info["id"])
     return response
 
-
-# -----------------------------
-# LOGOUT
-# -----------------------------
+# ---------------------------------------------------
+# Logout
+# ---------------------------------------------------
 @app.get("/logout")
 async def logout():
     response = RedirectResponse(url="/")
@@ -130,31 +122,22 @@ async def logout():
     return response
 
 # ---------------------------------------------------
-# 👮 Painel Admin
+# Painel Admin
 # ---------------------------------------------------
-
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-
-    user_id = request.cookies.get("user_id")
-
-    if user_id not in ADMINS:
+    user_id = request.cookies.get("discord_user")
+    if not user_id or user_id not in ADMINS:
         return HTMLResponse("<h1>Acesso negado</h1>")
 
-    # buscar avaliações no Firestore
     docs = db.collection("avaliacoes").stream()
     avaliacoes = [doc.to_dict() for doc in docs]
 
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "avaliacoes": avaliacoes
-    })
-
+    return templates.TemplateResponse("admin.html", {"request": request, "avaliacoes": avaliacoes})
 
 # ---------------------------------------------------
-# 📝 API para receber formulários
+# Enviar formulário
 # ---------------------------------------------------
-
 @app.post("/submit")
 async def submit_form(
     user_id: str = Form(...),
@@ -199,30 +182,23 @@ async def submit_form(
                 {"name": "📊 Geral",
                  "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n"
                           f"• Assaltos: **{assaltos}**\n"
-                          f"• Abordagens: **{abordagens}**",
-                 "inline": False},
+                          f"• Abordagens: **{abordagens}**", "inline": False},
                 {"name": "🚓 Ações",
-                 "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**",
-                 "inline": False},
+                 "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**", "inline": False},
                 {"name": "📡 Rádio",
-                 "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}",
-                 "inline": False},
+                 "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}", "inline": False},
                 {"name": "🧍 Conduta",
-                 "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}",
-                 "inline": False},
+                 "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}", "inline": False},
                 {"name": "🔒 Detenção 1",
                  "value": f"• Nota: **{nota_detencao}/10**\n• Leu direitos: **{det1_leu_direitos}**\n"
-                          f"• Identificou: **{det1_identificou}**\n• Apreendeu objetos: **{det1_apreendeu}**",
-                 "inline": False},
+                          f"• Identificou: **{det1_identificou}**\n• Apreendeu objetos: **{det1_apreendeu}**", "inline": False},
                 {"name": "🔒 Detenção 2",
                  "value": f"• Nota: **{nota_detencao2}/10**\n• Leu direitos: **{det2_leu_direitos}**\n"
-                          f"• Identificou: **{det2_identificou}**\n• Apreendeu objetos: **{det2_apreendeu}**",
-                 "inline": False},
+                          f"• Identificou: **{det2_identificou}**\n• Apreendeu objetos: **{det2_apreendeu}**", "inline": False},
                 {"name": "⚠️ Incidente",
                  "value": f"• Nota: **{nota_incidente}/10**\n• Crimes corretos: **{crimes_yesno}**\n"
                           f"• Foto: **{foto_yesno}**\n• Layout: **{layout_yesno}**\n"
-                          f"• Descrição: **{descricao_yesno}**",
-                 "inline": False},
+                          f"• Descrição: **{descricao_yesno}**", "inline": False},
                 {"name": "❗ Erros no Incidente",
                  "value": incidente_erros if incidente_erros else "Nenhum informado.", "inline": False},
                 {"name": "📝 Observação Final", "value": incidente_obs, "inline": False},
@@ -230,52 +206,25 @@ async def submit_form(
             ]
         }
 
-        # Enviar para Discord
+        # Enviar para Discord via webhook
         r = requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]})
         if r.status_code not in (200, 204):
             print("Erro Discord:", r.text)
 
         # Salvar no Firestore
-        data = {
-            "avaliador": avaliador_info,
-            "nome": nome,
-            "tema": tema,
-            "avaliacoes_feitas": avaliacoes_feitas,
-            "assaltos": assaltos,
-            "abordagens": abordagens,
-            "perseg": perseg,
-            "detencoes_count": detencoes_count,
-            "radio": radio,
-            "radio_desc": radio_desc,
-            "conduta": conduta,
-            "conduta_desc": conduta_desc,
-            "nota_detencao": nota_detencao,
-            "det1_leu_direitos": det1_leu_direitos,
-            "det1_identificou": det1_identificou,
-            "det1_apreendeu": det1_apreendeu,
-            "conduta_desc2": conduta_desc2,
-            "nota_detencao2": nota_detencao2,
-            "det2_leu_direitos": det2_leu_direitos,
-            "det2_identificou": det2_identificou,
-            "det2_apreendeu": det2_apreendeu,
-            "nota_incidente": nota_incidente,
-            "crimes_yesno": crimes_yesno,
-            "foto_yesno": foto_yesno,
-            "layout_yesno": layout_yesno,
-            "descricao_yesno": descricao_yesno,
-            "incidente_erros": incidente_erros,
-            "incidente_obs": incidente_obs
-        }
-        db.collection("avaliacoes").add(data)
+        db.collection("avaliacoes").add({
+            **locals()
+        })
 
         return {"success": True, "message": "Avaliação enviada com sucesso!"}
 
     except Exception as e:
         print("ERRO:", e)
         return JSONResponse(status_code=500, content={"error": str(e)})
-# -----------------------------
-# EXPORTAR CSV
-# -----------------------------
+
+# ---------------------------------------------------
+# Exportar CSV
+# ---------------------------------------------------
 @app.get("/export_csv")
 async def export_csv(discord_user: str = Cookie(None)):
     if not discord_user or discord_user not in ADMINS:
@@ -283,8 +232,8 @@ async def export_csv(discord_user: str = Cookie(None)):
 
     output = StringIO()
     writer = csv.writer(output)
-    # Cabeçalho
     writer.writerow(["Nome", "Tema", "Avaliador", "Nota Conduta", "Nota Detenção", "Nota Incidente"])
+
     for doc in db.collection("avaliacoes").stream():
         d = doc.to_dict()
         writer.writerow([
@@ -297,9 +246,3 @@ async def export_csv(discord_user: str = Cookie(None)):
         ])
     output.seek(0)
     return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"})
-
-
-# -----------------------------
-# SERVIR FRONTEND
-# -----------------------------
-app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
