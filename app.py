@@ -211,10 +211,38 @@ async def submit_form(
         if r.status_code not in (200, 204):
             print("Erro Discord:", r.text)
 
-        # Salvar no Firestore
-        db.collection("avaliacoes").add({
-            **locals()
-        })
+         # Salvar no Firestore
+        data = {
+            "avaliador": avaliador_info,
+            "nome": nome,
+            "tema": tema,
+            "avaliacoes_feitas": avaliacoes_feitas,
+            "assaltos": assaltos,
+            "abordagens": abordagens,
+            "perseg": perseg,
+            "detencoes_count": detencoes_count,
+            "radio": radio,
+            "radio_desc": radio_desc,
+            "conduta": conduta,
+            "conduta_desc": conduta_desc,
+            "nota_detencao": nota_detencao,
+            "det1_leu_direitos": det1_leu_direitos,
+            "det1_identificou": det1_identificou,
+            "det1_apreendeu": det1_apreendeu,
+            "conduta_desc2": conduta_desc2,
+            "nota_detencao2": nota_detencao2,
+            "det2_leu_direitos": det2_leu_direitos,
+            "det2_identificou": det2_identificou,
+            "det2_apreendeu": det2_apreendeu,
+            "nota_incidente": nota_incidente,
+            "crimes_yesno": crimes_yesno,
+            "foto_yesno": foto_yesno,
+            "layout_yesno": layout_yesno,
+            "descricao_yesno": descricao_yesno,
+            "incidente_erros": incidente_erros,
+            "incidente_obs": incidente_obs
+        }
+        db.collection("avaliacoes").add(data)
 
         return {"success": True, "message": "Avaliação enviada com sucesso!"}
 
