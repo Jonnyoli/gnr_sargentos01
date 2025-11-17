@@ -31,7 +31,7 @@ input, select { padding: 6px; }
     overflow-x: auto;
     margin-top: 20px;
 }
-table { width: 100%; border-collapse: collapse; min-width: 700px; background: white; border-radius: 10px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; min-width: 800px; background: white; border-radius: 10px; overflow: hidden; }
 th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
 th { cursor: pointer; background: #f0f0f0; }
 tr:hover { background: #f9f9f9; position: relative; }
@@ -89,7 +89,6 @@ tr:hover { background: #f9f9f9; position: relative; }
     </div>
 </header>
 
-
 <div class="cards">
     <div class="card"><h2>{{ avaliacoes|length }}</h2><p>Total Avaliações</p></div>
     <div class="card"><h2>{{ avaliacoes|map(attribute='conduta')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Conduta</p></div>
@@ -104,9 +103,10 @@ tr:hover { background: #f9f9f9; position: relative; }
             <th onclick="sortTable(0)">Nome</th>
             <th onclick="sortTable(1)">Tema</th>
             <th onclick="sortTable(2)">Avaliador</th>
-            <th onclick="sortTable(3)">Nota Conduta</th>
-            <th onclick="sortTable(4)">Nota Detenção</th>
-            <th onclick="sortTable(5)">Nota Incidente</th>
+            <th onclick="sortTable(3)">Data</th>
+            <th onclick="sortTable(4)">Nota Conduta</th>
+            <th onclick="sortTable(5)">Nota Detenção</th>
+            <th onclick="sortTable(6)">Nota Incidente</th>
         </tr>
     </thead>
     <tbody>
@@ -115,6 +115,13 @@ tr:hover { background: #f9f9f9; position: relative; }
             <td>{{ a.get('nome', 'N/A') }}</td>
             <td>{{ a.get('tema', 'N/A') }}</td>
             <td>{{ a.get('avaliador', {}).get('tag', 'Desconhecido') }}</td>
+            <td>
+                {% if a.get('data_submissao') %}
+                    {{ a.data_submissao.strftime('%d/%m/%Y %H:%M') }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
             <td class="{% if a.get('conduta', 0) < 5 %}note-low{% elif a.get('conduta', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('conduta', 0) }}</td>
             <td class="{% if a.get('nota_detencao', 0) < 5 %}note-low{% elif a.get('nota_detencao', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('nota_detencao', 0) }}</td>
             <td class="{% if a.get('nota_incidente', 0) < 5 %}note-low{% elif a.get('nota_incidente', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('nota_incidente', 0) }}</td>
