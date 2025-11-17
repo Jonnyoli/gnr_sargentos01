@@ -52,11 +52,11 @@ app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 templates = Jinja2Templates(directory="templates")
 
 # ---------------------------------------------------
-# Função para buscar usuário no Discord
+# Função segura para buscar usuário no Discord
 # ---------------------------------------------------
 def buscar_user_discord(user_id: str):
     if not user_id:
-        return {"id": None, "username": None, "global_name": None, "tag": None}
+        return {"id": None, "username": None, "global_name": None, "tag": "Desconhecido"}
 
     headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
     r = requests.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers)
@@ -70,7 +70,7 @@ def buscar_user_discord(user_id: str):
             "tag": f"{data.get('username')}#{data.get('discriminator')}",
         }
 
-    return {"id": user_id, "username": None, "global_name": None, "tag": None}
+    return {"id": user_id, "username": None, "global_name": None, "tag": "Desconhecido"}
 
 # ---------------------------------------------------
 # Página inicial
@@ -142,6 +142,16 @@ async def admin_panel(request: Request):
     return templates.TemplateResponse("admin.html", {"request": request, "avaliacoes": avaliacoes})
 
 # ---------------------------------------------------
+# Função para sempre converter texto de embed com segurança
+# ---------------------------------------------------
+def safe(value):
+    if value is None:
+        return "Não informado"
+    if value == "":
+        return "Não informado"
+    return str(value)
+
+# ---------------------------------------------------
 # Envio do formulário
 # ---------------------------------------------------
 @app.post("/submit")
@@ -181,49 +191,71 @@ async def submit_form(
 
         avaliador_info = buscar_user_discord(user_id)
 
-        # 🔵 Construir o embed do Discord
         embed = {
             "title": "📋 Nova Avaliação de Guarda",
-            "description": f"Avaliação enviada por <@{user_id}>",
+            "description": f"Avaliação enviada por <@{safe(user_id)}>",
             "color": 0x00FF00,
             "fields": [
-                {"name": "👤 Nome do Avaliado", "value": nome, "inline": False},
-                {"name": "📌 Tema", "value": tema, "inline": False},
+                {"name": "👤 Nome do Avaliado", "value": safe(nome), "inline": False},
+                {"name": "📌 Tema", "value": safe(tema), "inline": False},
                 {"name": "📊 Geral",
-                 "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n"
-                          f"• Assaltos: **{assaltos}**\n"
-                          f"• Abordagens: **{abordagens}**", "inline": False},
+                 "value": (
+                     f"• Avaliações anteriores: **{safe(avaliacoes_feitas)}**\n"
+                     f"• Assaltos: **{safe(assaltos)}**\n"
+                     f"• Abordagens: **{safe(abordagens)}**"
+                 ),
+                 "inline": False},
                 {"name": "🚓 Ações",
-                 "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**", "inline": False},
+                 "value": (
+                     f"• Perseguições: **{safe(perseg)}**\n"
+                     f"• Detenções: **{safe(detencoes_count)}**"
+                 ),
+                 "inline": False},
                 {"name": "📡 Rádio",
-                 "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}", "inline": False},
+                 "value": f"Nota: **{safe(radio)}/10**\nDescrição: {safe(radio_desc)}",
+                 "inline": False},
                 {"name": "🧍 Conduta",
-                 "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}", "inline": False},
+                 "value": f"Nota: **{safe(conduta)}/10**\nDescrição: {safe(conduta_desc)}",
+                 "inline": False},
                 {"name": "🔒 Detenção 1",
-                 "value": f"• Nota: **{nota_detencao}/10**\n• Leu direitos: **{det1_leu_direitos}**\n"
-                          f"• Identificou: **{det1_identificou}**\n• Apreendeu objetos: **{det1_apreendeu}**",
+                 "value": (
+                     f"• Nota: **{safe(nota_detencao)}/10**\n"
+                     f"• Leu direitos: **{safe(det1_leu_direitos)}**\n"
+                     f"• Identificou: **{safe(det1_identificou)}**\n"
+                     f"• Apreendeu objetos: **{safe(det1_apreendeu)}**"
+                 ),
                  "inline": False},
                 {"name": "🔒 Detenção 2",
-                 "value": f"• Nota: **{nota_detencao2}/10**\n• Leu direitos: **{det2_leu_direitos}**\n"
-                          f"• Identificou: **{det2_identificou}**\n• Apreendeu objetos: **{det2_apreendeu}**",
+                 "value": (
+                     f"• Nota: **{safe(nota_detencao2)}/10**\n"
+                     f"• Leu direitos: **{safe(det2_leu_direitos)}**\n"
+                     f"• Identificou: **{safe(det2_identificou)}**\n"
+                     f"• Apreendeu objetos: **{safe(det2_apreendeu)}**"
+                 ),
                  "inline": False},
                 {"name": "⚠️ Incidente",
-                 "value": f"• Nota: **{nota_incidente}/10**\n• Crimes corretos: **{crimes_yesno}**\n"
-                          f"• Foto: **{foto_yesno}**\n• Layout: **{layout_yesno}**\n"
-                          f"• Descrição: **{descricao_yesno}**", "inline": False},
+                 "value": (
+                     f"• Nota: **{safe(nota_incidente)}/10**\n"
+                     f"• Crimes corretos: **{safe(crimes_yesno)}**\n"
+                     f"• Foto: **{safe(foto_yesno)}**\n"
+                     f"• Layout: **{safe(layout_yesno)}**\n"
+                     f"• Descrição: **{safe(descricao_yesno)}**"
+                 ),
+                 "inline": False},
                 {"name": "❗ Erros no Incidente",
-                 "value": incidente_erros if incidente_erros else "Nenhum informado.", "inline": False},
-                {"name": "📝 Observação Final", "value": incidente_obs, "inline": False},
-                {"name": "👮 Avaliador", "value": avaliador_info.get("tag", "Desconhecido"), "inline": False},
+                 "value": safe(incidente_erros),
+                 "inline": False},
+                {"name": "📝 Observação Final", "value": safe(incidente_obs), "inline": False},
+                {"name": "👮 Avaliador", "value": safe(avaliador_info.get("tag")), "inline": False},
             ]
         }
 
-        # Enviar para Webhook
         r = requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]})
-        if r.status_code not in (200, 204):
-            print("Erro no Webhook:", r.text)
 
-        # 🔥 Salvar no Firestore (corrigido)
+        if r.status_code not in (200, 204):
+            print("❌ Erro Webhook:", r.text)
+
+        # SALVAR FIRESTORE
         data = {
             "avaliador": avaliador_info,
             "nome": nome,
@@ -257,7 +289,7 @@ async def submit_form(
 
         db.collection("avaliacoes").add(data)
 
-        return {"success": True, "message": "Avaliação enviada!"}
+        return {"success": True, "message": "Avaliação enviada com sucesso!"}
 
     except Exception as e:
         print("ERRO:", e)
