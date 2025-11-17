@@ -283,6 +283,9 @@ async def submit_form(
             print("[INFO] DISCORD_WEBHOOK_URL não configurado — skipping webhook send.")
 
         # Prepara dados pra Firestore (garantir tipos primitivos)
+        from datetime import datetime
+
+        # dentro da função submit_form, antes de salvar no Firestore
         data = {
             "avaliador": avaliador_info,
             "nome": nome,
@@ -311,8 +314,12 @@ async def submit_form(
             "layout_yesno": layout_yesno,
             "descricao_yesno": descricao_yesno,
             "incidente_erros": incidente_erros,
-            "incidente_obs": incidente_obs
+            "incidente_obs": incidente_obs,
+            "data_submissao": datetime.utcnow()  # ✅ adicionada
         }
+
+db.collection("avaliacoes").add(data)
+
 
         if db:
             try:
