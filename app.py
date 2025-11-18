@@ -260,14 +260,41 @@ async def submit_form(
             "fields": [
                 {"name": "👤 Nome do Avaliado", "value": nome, "inline": False},
                 {"name": "📌 Tema", "value": tema, "inline": False},
-                {"name": "📊 Geral",
-                 "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n• Assaltos: **{assaltos}**\n• Abordagens: **{abordagens}**", "inline": False},
+                {
+                    "name": "📊 Geral",
+                    "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n"
+                             f"• Assaltos: **{assaltos}**\n"
+                             f"• Abordagens: **{abordagens}**",
+                    "inline": False
+                },
                 {"name": "🚓 Ações", "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**", "inline": False},
                 {"name": "📡 Rádio", "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}", "inline": False},
                 {"name": "🧍 Conduta", "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}", "inline": False},
-                {"name": "🔒 Detenção 1", "value": f"• Nota: **{nota_detencao}/10**\n• Leu direitos: **{det1_leu_direitos}**\n• Identificou: **{det1_identificou}**\n• Apreendeu objetos: **{det1_apreendeu}**", "inline": False},
-                {"name": "🔒 Detenção 2", "value": f"• Nota: **{nota_detencao2}/10**\n• Leu direitos: **{det2_leu_direitos}**\n• Identificou: **{det2_identificou}**\n• Apreendeu objetos: **{det2_apreendeu}**", "inline": False},
-                {"name": "⚠️ Incidente", "value": f"• Nota: **{nota_incidente}/10**\n• Crimes corretos: **{crimes_yesno}**\n• Foto: **{foto_yesno}**\n• Layout: **{layout_yesno}**\n• Descrição: **{descricao_yesno}**", "inline": False},
+                {
+                    "name": "🔒 Detenção 1",
+                    "value": f"• Nota: **{nota_detencao}/10**\n"
+                             f"• Leu direitos: **{det1_leu_direitos}**\n"
+                             f"• Identificou: **{det1_identificou}**\n"
+                             f"• Apreendeu objetos: **{det1_apreendeu}**",
+                    "inline": False
+                },
+                {
+                    "name": "🔒 Detenção 2",
+                    "value": f"• Nota: **{nota_detencao2}/10**\n"
+                             f"• Leu direitos: **{det2_leu_direitos}**\n"
+                             f"• Identificou: **{det2_identificou}**\n"
+                             f"• Apreendeu objetos: **{det2_apreendeu}**",
+                    "inline": False
+                },
+                {
+                    "name": "⚠️ Incidente",
+                    "value": f"• Nota: **{nota_incidente}/10**\n"
+                             f"• Crimes corretos: **{crimes_yesno}**\n"
+                             f"• Foto: **{foto_yesno}**\n"
+                             f"• Layout: **{layout_yesno}**\n"
+                             f"• Descrição: **{descricao_yesno}**",
+                    "inline": False
+                },
                 {"name": "❗ Erros no Incidente", "value": incidente_erros if incidente_erros else "Nenhum informado.", "inline": False},
                 {"name": "📝 Observação Final", "value": incidente_obs, "inline": False},
                 {"name": "👮 Avaliador", "value": avaliador_info.get("tag", "Desconhecido"), "inline": False},
@@ -282,10 +309,8 @@ async def submit_form(
         else:
             print("[INFO] DISCORD_WEBHOOK_URL não configurado — skipping webhook send.")
 
-        # Prepara dados pra Firestore (garantir tipos primitivos)
         from datetime import datetime
 
-        # dentro da função submit_form, antes de salvar no Firestore
         data = {
             "avaliador": avaliador_info,
             "nome": nome,
@@ -315,18 +340,14 @@ async def submit_form(
             "descricao_yesno": descricao_yesno,
             "incidente_erros": incidente_erros,
             "incidente_obs": incidente_obs,
-            "data_submissao": datetime.utcnow()  # ✅ adicionada
+            "data_submissao": datetime.utcnow()
         }
-
-db.collection("avaliacoes").add(data)
-
 
         if db:
             try:
                 db.collection("avaliacoes").add(data)
             except Exception as e:
                 print("[ERRO] Ao salvar no Firestore:", e)
-                # não falha o envio para o utilizador — devolve erro
                 return JSONResponse(status_code=500, content={"error": "Falha ao gravar no Firestore"})
 
         return {"success": True, "message": "Avaliação enviada!"}
