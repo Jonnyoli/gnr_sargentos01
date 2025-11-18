@@ -18,7 +18,6 @@ from firebase_admin import credentials, firestore
 # -----------------------------
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
-# Prefer DISCORD_REDIRECT_URI se estiver definida; senão tenta FRONTEND_URL + /callback
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI") or (os.getenv("FRONTEND_URL") + "/callback" if os.getenv("FRONTEND_URL") else None)
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_TOKEN")           # usado para buscar info do utilizador via bot token
@@ -44,7 +43,6 @@ for k, v in required_envs.items():
 # -----------------------------
 # FIRESTORE (constrói o credential a partir de ENV)
 # -----------------------------
-# Atenção: a FIRESTORE_PRIVATE_KEY deve ter sido guardada com \n em vez de quebras reais.
 if os.getenv("FIRESTORE_PRIVATE_KEY"):
     service_account = {
         "type": "service_account",
@@ -88,28 +86,19 @@ def is_valid_url(url: Optional[str]) -> bool:
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 # -----------------------------
-# Função para buscar usuário no Discord
+# Função para buscar usuário no Discord via Bot
 # -----------------------------
 def buscar_user_discord(user_id: Optional[str]):
-    """
-    Usa o bot token para obter username#discriminator via API /users/{id}.
-    Se não houver token ou request falhar, devolve um objecto 'vazio' com id.
-    """
     if not user_id:
         return {"id": None, "username": None, "global_name": None, "tag": None}
 
     if not DISCORD_BOT_TOKEN:
-        print("[WARN] DISCORD_BOT_TOKEN ausente — não é possível buscar dados do Discord (usar fallback).")
         return {"id": user_id, "username": None, "global_name": None, "tag": f"{user_id}"}
 
     headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
     try:
         r = requests.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers, timeout=8)
-    except Exception as e:
-        print("[WARN] Erro ao contactar API Discord:", e)
-        return {"id": user_id, "username": None, "global_name": None, "tag": f"{user_id}"}
-
-    if r.status_code == 200:
+        r.raise_for_status()
         data = r.json()
         return {
             "id": user_id,
@@ -117,44 +106,31 @@ def buscar_user_discord(user_id: Optional[str]):
             "global_name": data.get("global_name"),
             "tag": f"{data.get('username')}#{data.get('discriminator')}" if data.get("username") and data.get("discriminator") else f"{user_id}"
         }
-    else:
-        print(f"[INFO] Discord API respondeu {r.status_code} para user {user_id}: {r.text}")
+    except Exception as e:
+        print("[WARN] Falha ao buscar user via bot:", e)
         return {"id": user_id, "username": None, "global_name": None, "tag": f"{user_id}"}
 
 # -----------------------------
-# Rotas
+# Rotas básicas (home, login, logout, admin)
 # -----------------------------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Login Discord — valida redirect_uri antes de construir URL
 @app.get("/login/discord")
 async def login_discord():
     if not is_valid_url(DISCORD_REDIRECT_URI):
-        detail = (
-            "<h2>Erro de configuração</h2>"
-            "<p>DISCORD_REDIRECT_URI ou FRONTEND_URL não está configurada corretamente.</p>"
-            "<p>Define a variável DISCORD_REDIRECT_URI (por exemplo: "
-            "<code>https://teu-dominio.com/callback</code>) e certifica-te que esse valor "
-            "está registado nos Redirect URIs da tua aplicação Discord.</p>"
-        )
-        return HTMLResponse(detail, status_code=500)
-
+        return HTMLResponse("<h1>Redirect URI inválido</h1>", status_code=500)
     params = {
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
         "response_type": "code",
         "scope": "identify"
     }
-    url = f"https://discord.com/api/oauth2/authorize?{urllib.parse.urlencode(params)}"
-    return RedirectResponse(url)
+    return RedirectResponse(f"https://discord.com/api/oauth2/authorize?{urllib.parse.urlencode(params)}")
 
 @app.get("/callback")
 async def discord_callback(code: str):
-    if not is_valid_url(DISCORD_REDIRECT_URI):
-        return HTMLResponse("<h1>Redirect URI inválido (ver logs)</h1>", status_code=500)
-
     data = {
         "client_id": DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
@@ -164,28 +140,13 @@ async def discord_callback(code: str):
         "scope": "identify"
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    try:
-        r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers, timeout=10)
-        r.raise_for_status()
-    except Exception as e:
-        print("[ERRO] Token request falhou:", getattr(e, "response", e))
-        return HTMLResponse("<h1>Erro no OAuth (token)</h1><p>Ver logs.</p>", status_code=500)
-
+    r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers, timeout=10)
+    r.raise_for_status()
     access_token = r.json().get("access_token")
-    if not access_token:
-        print("[ERRO] access_token ausente na resposta:", r.text)
-        return HTMLResponse("<h1>Erro no OAuth — token ausente</h1>", status_code=500)
-
-    try:
-        r2 = requests.get("https://discord.com/api/v10/users/@me", headers={"Authorization": f"Bearer {access_token}"}, timeout=8)
-        r2.raise_for_status()
-    except Exception as e:
-        print("[ERRO] Falha a obter user/@me:", getattr(e, "response", e))
-        return HTMLResponse("<h1>Erro ao obter dados do utilizador</h1>", status_code=500)
-
+    r2 = requests.get("https://discord.com/api/v10/users/@me", headers={"Authorization": f"Bearer {access_token}"}, timeout=8)
+    r2.raise_for_status()
     user_info = r2.json()
     response = RedirectResponse(url="/admin")
-    # grava cookie com o id do discord
     response.set_cookie(key="discord_user", value=user_info.get("id"))
     return response
 
@@ -197,27 +158,25 @@ async def logout():
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    # Usa cookie "discord_user" (definido em /callback)
     user_id = request.cookies.get("discord_user")
     if not user_id:
         return RedirectResponse(url="/")
     if ADMINS and user_id not in ADMINS:
         return HTMLResponse("<h1>Acesso negado</h1>", status_code=403)
-
     avaliacoes = []
     if db:
         try:
-            docs = db.collection("avaliacoes").stream()
-            avaliacoes = [doc.to_dict() for doc in docs]
+            avaliacoes = [doc.to_dict() for doc in db.collection("avaliacoes").stream()]
         except Exception as e:
-            print("[WARN] Erro a ler avaliações do Firestore:", e)
-            avaliacoes = []
-
+            print("[WARN] Erro ao ler avaliações:", e)
     return templates.TemplateResponse("admin.html", {"request": request, "avaliacoes": avaliacoes})
 
-# Endpoint para receber formulário (frontend envia FormData)
+# -----------------------------
+# Submit form atualizado para gravar Avaliador corretamente
+# -----------------------------
 @app.post("/submit")
 async def submit_form(
+    request: Request,
     user_id: str = Form(default=None),
     nome: str = Form(...),
     tema: str = Form(...),
@@ -248,69 +207,21 @@ async def submit_form(
     incidente_obs: str = Form(...)
 ):
     try:
+        # Pega o ID do cookie se não veio via form
+        if not user_id:
+            user_id = request.cookies.get("discord_user")
         if not user_id:
             return JSONResponse(status_code=400, content={"error": "user_id ausente"})
 
+        # Obtém info do usuário (OAuth confiável)
         avaliador_info = buscar_user_discord(user_id)
-
-        embed = {
-            "title": "📋 Nova Avaliação de Guarda",
-            "description": f"Avaliação enviada por <@{user_id}>",
-            "color": 0x00FF00,
-            "fields": [
-                {"name": "👤 Nome do Avaliado", "value": nome, "inline": False},
-                {"name": "📌 Tema", "value": tema, "inline": False},
-                {
-                    "name": "📊 Geral",
-                    "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n"
-                             f"• Assaltos: **{assaltos}**\n"
-                             f"• Abordagens: **{abordagens}**",
-                    "inline": False
-                },
-                {"name": "🚓 Ações", "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**", "inline": False},
-                {"name": "📡 Rádio", "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}", "inline": False},
-                {"name": "🧍 Conduta", "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}", "inline": False},
-                {
-                    "name": "🔒 Detenção 1",
-                    "value": f"• Nota: **{nota_detencao}/10**\n"
-                             f"• Leu direitos: **{det1_leu_direitos}**\n"
-                             f"• Identificou: **{det1_identificou}**\n"
-                             f"• Apreendeu objetos: **{det1_apreendeu}**",
-                    "inline": False
-                },
-                {
-                    "name": "🔒 Detenção 2",
-                    "value": f"• Nota: **{nota_detencao2}/10**\n"
-                             f"• Leu direitos: **{det2_leu_direitos}**\n"
-                             f"• Identificou: **{det2_identificou}**\n"
-                             f"• Apreendeu objetos: **{det2_apreendeu}**",
-                    "inline": False
-                },
-                {
-                    "name": "⚠️ Incidente",
-                    "value": f"• Nota: **{nota_incidente}/10**\n"
-                             f"• Crimes corretos: **{crimes_yesno}**\n"
-                             f"• Foto: **{foto_yesno}**\n"
-                             f"• Layout: **{layout_yesno}**\n"
-                             f"• Descrição: **{descricao_yesno}**",
-                    "inline": False
-                },
-                {"name": "❗ Erros no Incidente", "value": incidente_erros if incidente_erros else "Nenhum informado.", "inline": False},
-                {"name": "📝 Observação Final", "value": incidente_obs, "inline": False},
-                {"name": "👮 Avaliador", "value": avaliador_info.get("tag", "Desconhecido"), "inline": False},
-            ]
-        }
-
-        # Envia para webhook (se configurado)
-        if DISCORD_WEBHOOK_URL:
-            r = requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]}, timeout=8)
-            if r.status_code not in (200, 204):
-                print("[WARN] Erro no Webhook:", r.status_code, r.text)
-        else:
-            print("[INFO] DISCORD_WEBHOOK_URL não configurado — skipping webhook send.")
+        if not avaliador_info.get("username"):
+            # fallback: pega só o ID
+            avaliador_info["username"] = None
+            avaliador_info["global_name"] = None
+            avaliador_info["tag"] = user_id
 
         from datetime import datetime
-
         data = {
             "avaliador": avaliador_info,
             "nome": nome,
@@ -344,11 +255,30 @@ async def submit_form(
         }
 
         if db:
-            try:
-                db.collection("avaliacoes").add(data)
-            except Exception as e:
-                print("[ERRO] Ao salvar no Firestore:", e)
-                return JSONResponse(status_code=500, content={"error": "Falha ao gravar no Firestore"})
+            db.collection("avaliacoes").add(data)
+
+        # webhook
+        if DISCORD_WEBHOOK_URL:
+            embed = {
+                "title": "📋 Nova Avaliação de Guarda",
+                "description": f"Avaliação enviada por <@{user_id}>",
+                "color": 0x00FF00,
+                "fields": [
+                    {"name": "👤 Nome do Avaliado", "value": nome, "inline": False},
+                    {"name": "📌 Tema", "value": tema, "inline": False},
+                    {"name": "📊 Geral", "value": f"• Avaliações anteriores: **{avaliacoes_feitas}**\n• Assaltos: **{assaltos}**\n• Abordagens: **{abordagens}**", "inline": False},
+                    {"name": "🚓 Ações", "value": f"• Perseguições: **{perseg}**\n• Detenções: **{detencoes_count}**", "inline": False},
+                    {"name": "📡 Rádio", "value": f"Nota: **{radio}/10**\nDescrição: {radio_desc}", "inline": False},
+                    {"name": "🧍 Conduta", "value": f"Nota: **{conduta}/10**\nDescrição: {conduta_desc}", "inline": False},
+                    {"name": "🔒 Detenção 1", "value": f"• Nota: **{nota_detencao}/10**\n• Leu direitos: **{det1_leu_direitos}**\n• Identificou: **{det1_identificou}**\n• Apreendeu objetos: **{det1_apreendeu}**", "inline": False},
+                    {"name": "🔒 Detenção 2", "value": f"• Nota: **{nota_detencao2}/10**\n• Leu direitos: **{det2_leu_direitos}**\n• Identificou: **{det2_identificou}**\n• Apreendeu objetos: **{det2_apreendeu}**", "inline": False},
+                    {"name": "⚠️ Incidente", "value": f"• Nota: **{nota_incidente}/10**\n• Crimes corretos: **{crimes_yesno}**\n• Foto: **{foto_yesno}**\n• Layout: **{layout_yesno}**\n• Descrição: **{descricao_yesno}**", "inline": False},
+                    {"name": "❗ Erros no Incidente", "value": incidente_erros if incidente_erros else "Nenhum informado.", "inline": False},
+                    {"name": "📝 Observação Final", "value": incidente_obs, "inline": False},
+                    {"name": "👮 Avaliador", "value": avaliador_info.get("tag", "Desconhecido"), "inline": False},
+                ]
+            }
+            requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]}, timeout=8)
 
         return {"success": True, "message": "Avaliação enviada!"}
 
@@ -356,7 +286,9 @@ async def submit_form(
         print("[ERRO] submit_form:", e)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+# -----------------------------
 # Export CSV
+# -----------------------------
 @app.get("/export_csv")
 async def export_csv(discord_user: str = Cookie(None)):
     if not discord_user or (ADMINS and discord_user not in ADMINS):
