@@ -1,6 +1,12 @@
-#!/bin/bash
-# Permite que o container use a porta do Render
-echo "Starting FastAPI on port $PORT..."
+#!/usr/bin/env bash
+# start.sh — Inicia o FastAPI no Render
+# Certifique-se de ter uvicorn instalado no requirements.txt
 
-# Executa o Uvicorn com host 0.0.0.0 e porta do Render
+# Saia se qualquer comando falhar
+set -e
+
+# Mostra o comando que está rodando
+echo "Iniciando FastAPI..."
+
+# Usa a variável $PORT que o Render fornece
 exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --reload
