@@ -6,12 +6,51 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { font-family: Arial, sans-serif; background: #f4f6f8; padding: 20px; }
-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-button { padding: 8px 16px; margin-left: 10px; cursor: pointer; }
-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
-input { padding: 6px; width: 200px; margin-right: 10px; }
-.chart-container { width: 100%; max-width: 800px; margin-top: 30px; }
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+header div { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+
+button { padding: 8px 16px; cursor: pointer; }
+input, select { padding: 6px; }
+
+.cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.card {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    flex: 1 1 200px;
+    text-align: center;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+table { width: 100%; border-collapse: collapse; min-width: 800px; background: white; border-radius: 10px; overflow: hidden; }
+th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+th { cursor: pointer; background: #f0f0f0; }
+tr:hover { background: #f9f9f9; position: relative; }
+
+.note-low { background-color: #ffcccc; }
+.note-medium { background-color: #fff0b3; }
+.note-high { background-color: #ccffcc; }
+
+.tooltip {
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    display: none;
+    z-index: 1000;
+}
+.chart-container { width: 100%; max-width: 900px; margin-top: 30px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 </style>
 </head>
 <body>
@@ -19,96 +58,165 @@ input { padding: 6px; width: 200px; margin-right: 10px; }
 <header>
     <h1>Painel Admin</h1>
     <div>
-        <input type="text" id="search" placeholder="Buscar por nome, tema ou avaliador">
+        <input type="text" id="search" placeholder="Buscar por nome">
+
+        <select id="filterTema">
+            <option value="">Todos os temas</option>
+            {% set temas = [] %}
+            {% for a in avaliacoes %}
+                {% set tema = a.get('tema') %}
+                {% if tema and tema not in temas %}
+                    {% set _ = temas.append(tema) %}
+                    <option value="{{ tema }}">{{ tema }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+
+        <select id="filterAvaliador">
+            <option value="">Todos os avaliadores</option>
+            {% set avaliadores = [] %}
+            {% for a in avaliacoes %}
+                {% set nickname = a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') %}
+                {% if nickname and nickname not in avaliadores %}
+                    {% set _ = avaliadores.append(nickname) %}
+                    <option value="{{ nickname }}">{{ nickname }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+
+        <input type="date" id="filterFrom" placeholder="De">
+        <input type="date" id="filterTo" placeholder="Até">
+
         <button onclick="exportCSV()">Exportar CSV</button>
         <button onclick="logout()">Logout</button>
     </div>
 </header>
 
+<div class="cards">
+    <div class="card"><h2>{{ avaliacoes|length }}</h2><p>Total Avaliações</p></div>
+    <div class="card"><h2>{{ avaliacoes|map(attribute='conduta')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Conduta</p></div>
+    <div class="card"><h2>{{ avaliacoes|map(attribute='nota_detencao')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Detenção</p></div>
+    <div class="card"><h2>{{ avaliacoes|map(attribute='nota_incidente')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Incidente</p></div>
+</div>
+
+<div class="table-container">
 <table id="tableAvaliacoes">
     <thead>
         <tr>
             <th onclick="sortTable(0)">Nome</th>
             <th onclick="sortTable(1)">Tema</th>
             <th onclick="sortTable(2)">Avaliador</th>
-            <th onclick="sortTable(3)">Nota Conduta</th>
-            <th onclick="sortTable(4)">Nota Detenção</th>
-            <th onclick="sortTable(5)">Nota Incidente</th>
+            <th onclick="sortTable(3)">Data</th>
+            <th onclick="sortTable(4)">Nota Conduta</th>
+            <th onclick="sortTable(5)">Nota Detenção</th>
+            <th onclick="sortTable(6)">Nota Incidente</th>
         </tr>
     </thead>
     <tbody>
         {% for a in avaliacoes %}
-        <tr>
+        <tr title="Observação: {{ a.get('incidente_obs', 'Nenhuma') }}">
             <td>{{ a.get('nome', 'N/A') }}</td>
             <td>{{ a.get('tema', 'N/A') }}</td>
-            <td>{{ a.get('avaliador', {}).get('tag', 'Desconhecido') }}</td>
-            <td>{{ a.get('conduta', 0) }}</td>
-            <td>{{ a.get('nota_detencao', 0) }}</td>
-            <td>{{ a.get('nota_incidente', 0) }}</td>
+            <td>{{ a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') or a.get('avaliador', {}).get('tag') or 'Desconhecido' }}</td>
+            <td>
+                {% if a.get('data_submissao') %}
+                    {{ a.data_submissao.strftime('%d/%m/%Y %H:%M') }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td class="{% if a.get('conduta', 0) < 5 %}note-low{% elif a.get('conduta', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('conduta', 0) }}</td>
+            <td class="{% if a.get('nota_detencao', 0) < 5 %}note-low{% elif a.get('nota_detencao', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('nota_detencao', 0) }}</td>
+            <td class="{% if a.get('nota_incidente', 0) < 5 %}note-low{% elif a.get('nota_incidente', 0) < 8 %}note-medium{% else %}note-high{% endif %}">{{ a.get('nota_incidente', 0) }}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 
 <div class="chart-container">
     <canvas id="chart"></canvas>
 </div>
 
 <script>
-// ------------------- FILTRO -------------------
-document.getElementById("search").addEventListener("input", function() {
-    const filter = this.value.toLowerCase();
+// ------------------- PARSE DE DATAS -------------------
+function parseTableDate(str) {
+    if (!str || str === "-") return null;
+    let [day, month, year] = str.split(' ')[0].split('/');
+    return new Date(year, month-1, day); // mês começa em 0
+}
+
+// ------------------- FILTRO AVANÇADO -------------------
+function applyFilters() {
+    const search = document.getElementById("search").value.toLowerCase();
+    const tema = document.getElementById("filterTema").value;
+    const avaliador = document.getElementById("filterAvaliador").value;
+    const fromDate = document.getElementById("filterFrom").value ? new Date(document.getElementById("filterFrom").value) : null;
+    const toDate = document.getElementById("filterTo").value ? new Date(document.getElementById("filterTo").value) : null;
+
     const rows = document.querySelectorAll("#tableAvaliacoes tbody tr");
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(filter) ? "" : "none";
+        const rowTema = row.cells[1].innerText;
+        const rowAvaliador = row.cells[2].innerText;
+        const rowDateObj = parseTableDate(row.cells[3].innerText);
+
+        let show = text.includes(search);
+        if (tema) show = show && rowTema === tema;
+        if (avaliador) show = show && rowAvaliador === avaliador;
+
+        if (rowDateObj) {
+            if (fromDate) show = show && (rowDateObj >= fromDate);
+            if (toDate) show = show && (rowDateObj <= toDate);
+        } else if (fromDate || toDate) {
+            show = false;
+        }
+
+        row.style.display = show ? "" : "none";
     });
-});
+}
+
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filterTema").addEventListener("change", applyFilters);
+document.getElementById("filterAvaliador").addEventListener("change", applyFilters);
+document.getElementById("filterFrom").addEventListener("change", applyFilters);
+document.getElementById("filterTo").addEventListener("change", applyFilters);
 
 // ------------------- ORDENAR TABELA -------------------
 function sortTable(colIndex) {
     const table = document.getElementById("tableAvaliacoes");
-    let switching = true;
-    let dir = "asc";
+    let switching = true, dir = "asc";
     while (switching) {
         switching = false;
         const rows = table.rows;
-        for (let i = 1; i < rows.length - 1; i++) {
-            let x = rows[i].cells[colIndex].innerText;
-            let y = rows[i + 1].cells[colIndex].innerText;
-            if (!isNaN(x) && !isNaN(y)) { x = parseFloat(x); y = parseFloat(y); }
-            let shouldSwitch = dir === "asc" ? x > y : x < y;
-            if (shouldSwitch) {
-                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                switching = true;
-            }
+        for (let i=1; i<rows.length-1; i++) {
+            let x=rows[i].cells[colIndex].innerText, y=rows[i+1].cells[colIndex].innerText;
+            if(!isNaN(x) && !isNaN(y)){x=parseFloat(x);y=parseFloat(y);}
+            let shouldSwitch = dir==="asc"? x>y:x<y;
+            if(shouldSwitch){rows[i].parentNode.insertBefore(rows[i+1], rows[i]); switching=true;}
         }
-        if (!switching && dir === "asc") dir = "desc", switching = true;
+        if(!switching && dir==="asc") dir="desc", switching=true;
     }
 }
 
-// ------------------- EXPORT CSV -------------------
-function exportCSV() { window.location.href = "/export_csv"; }
+// ------------------- EXPORT & LOGOUT -------------------
+function exportCSV(){ window.location.href="/export_csv"; }
+function logout(){ window.location.href="/frontend/index.html"; }
 
-// ------------------- LOGOUT -------------------
-function logout() { window.location.href = "/frontend/index.html"; }
-
-// ------------------- GRÁFICO -------------------
+// ------------------- GRÁFICO INTERATIVO -------------------
 const data = {
-    labels: [
-        {% for a in avaliacoes %}"{{ a.get('nome', 'N/A') }}",{% endfor %}
-    ],
+    labels: [{% for a in avaliacoes %}"{{ a.get('nome','N/A') }}",{% endfor %}],
     datasets: [{
         label: 'Nota Conduta',
-        data: [{% for a in avaliacoes %}{{ a.get('conduta', 0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('conduta',0) }},{% endfor %}],
         backgroundColor: 'rgba(54, 162, 235, 0.5)'
     },{
         label: 'Nota Detenção',
-        data: [{% for a in avaliacoes %}{{ a.get('nota_detencao', 0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('nota_detencao',0) }},{% endfor %}],
         backgroundColor: 'rgba(255, 99, 132, 0.5)'
     },{
         label: 'Nota Incidente',
-        data: [{% for a in avaliacoes %}{{ a.get('nota_incidente', 0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('nota_incidente',0) }},{% endfor %}],
         backgroundColor: 'rgba(75, 192, 192, 0.5)'
     }]
 };
@@ -116,7 +224,7 @@ const data = {
 new Chart(document.getElementById('chart'), {
     type: 'bar',
     data: data,
-    options: { responsive: true, scales: { y: { beginAtZero: true, max: 10 } } }
+    options: { responsive:true, scales:{ y:{ beginAtZero:true, max:10 } } }
 });
 </script>
 </body>
