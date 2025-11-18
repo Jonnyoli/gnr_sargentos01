@@ -76,13 +76,16 @@ tr:hover { background: #f9f9f9; position: relative; }
             <option value="">Todos os avaliadores</option>
             {% set avaliadores = [] %}
             {% for a in avaliacoes %}
-                {% set tag = a.get('avaliador', {}).get('tag') %}
-                {% if tag and tag not in avaliadores %}
-                    {% set _ = avaliadores.append(tag) %}
-                    <option value="{{ tag }}">{{ tag }}</option>
+                {% set nickname = a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') %}
+                {% if nickname and nickname not in avaliadores %}
+                    {% set _ = avaliadores.append(nickname) %}
+                    <option value="{{ nickname }}">{{ nickname }}</option>
                 {% endif %}
             {% endfor %}
         </select>
+
+        <input type="date" id="filterFrom" placeholder="De">
+        <input type="date" id="filterTo" placeholder="Até">
 
         <button onclick="exportCSV()">Exportar CSV</button>
         <button onclick="logout()">Logout</button>
@@ -114,7 +117,7 @@ tr:hover { background: #f9f9f9; position: relative; }
         <tr title="Observação: {{ a.get('incidente_obs', 'Nenhuma') }}">
             <td>{{ a.get('nome', 'N/A') }}</td>
             <td>{{ a.get('tema', 'N/A') }}</td>
-            <td>{{ a.get('avaliador', {}).get('tag', 'Desconhecido') }}</td>
+            <td>{{ a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') or a.get('avaliador', {}).get('tag') or 'Desconhecido' }}</td>
             <td>
                 {% if a.get('data_submissao') %}
                     {{ a.data_submissao.strftime('%d/%m/%Y %H:%M') }}
@@ -141,20 +144,39 @@ function applyFilters() {
     const search = document.getElementById("search").value.toLowerCase();
     const tema = document.getElementById("filterTema").value;
     const avaliador = document.getElementById("filterAvaliador").value;
+    const fromDate = document.getElementById("filterFrom").value;
+    const toDate = document.getElementById("filterTo").value;
+
     const rows = document.querySelectorAll("#tableAvaliacoes tbody tr");
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
         const rowTema = row.cells[1].innerText;
         const rowAvaliador = row.cells[2].innerText;
+        const rowData = row.cells[3].innerText; // dd/mm/yyyy hh:mm
+
         let show = text.includes(search);
         if (tema) show = show && rowTema === tema;
         if (avaliador) show = show && rowAvaliador === avaliador;
+
+        // Filtrar por datas
+        if (fromDate || toDate) {
+            if(rowData && rowData !== "-"){
+                let [day, month, year] = rowData.split(' ')[0].split('/');
+                let rowDateObj = new Date(`${year}-${month}-${day}`);
+                if (fromDate) show = show && (rowDateObj >= new Date(fromDate));
+                if (toDate) show = show && (rowDateObj <= new Date(toDate));
+            } else show = false;
+        }
+
         row.style.display = show ? "" : "none";
     });
 }
+
 document.getElementById("search").addEventListener("input", applyFilters);
 document.getElementById("filterTema").addEventListener("change", applyFilters);
 document.getElementById("filterAvaliador").addEventListener("change", applyFilters);
+document.getElementById("filterFrom").addEventListener("change", applyFilters);
+document.getElementById("filterTo").addEventListener("change", applyFilters);
 
 // ------------------- ORDENAR TABELA -------------------
 function sortTable(colIndex) {
