@@ -232,9 +232,9 @@ async def submit_form(
         # Dados do avaliador via OAuth (temporário) -> Podemos mudar para TOKEN
         avaliador_info = {
             "id": oauth_user.get("id"),
-            "username": oauth_user.get("username"),
-            "global_name": oauth_user.get("global_name"),
-            "tag": f"@{oauth_user.get('username')}"
+            "username": oauth_user.get("username") or "Desconhecido",
+            "global_name": oauth_user.get("global_name") or "Desconhecido",
+            "tag": f"@{oauth_user.get('username') or oauth_user.get('global_name') or 'Desconhecido'}"
         }
         from datetime import datetime
         data = {
@@ -353,3 +353,4 @@ async def export_csv(discord_user: str = Cookie(None)):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"}
     )
+
