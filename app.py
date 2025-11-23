@@ -208,12 +208,26 @@ async def submit_form(
         if not raw:
             return JSONResponse(status_code=400, content={"error": "Utilizador não autenticado"})
 
-        oauth_user = json.loads(raw)
+        try:
+            data = json.loads(raw)
+
+            # Se vier número → cookie antigo
+            if isinstance(data, int):
+                oauth_user = {"id": str(data)}
+            elif isinstance(data, str):
+                oauth_user = {"id": data}
+            else:
+                oauth_user = data
+
+        except Exception:
+            # Se não carregar JSON → deve ser ID simples
+            oauth_user = {"id": raw}
 
         user_id = oauth_user.get("id")
 
         if not user_id:
             return JSONResponse(status_code=400, content={"error": "user_id inválido"})
+
 
         # Dados do avaliador via OAuth (temporário) -> Podemos mudar para TOKEN
         avaliador_info = {
