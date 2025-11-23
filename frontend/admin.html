@@ -8,21 +8,21 @@
 <style>
 /* ------------------ ROOT & GLOBAL ------------------ */
 :root {
-    --bg: #f1f3f7;
+    --bg: #eef1f6;
     --card-bg: #ffffff;
-    --text: #2a2a2a;
+    --text: #1f1f1f;
     --text-light: #6d6d6d;
-    --primary: #4a90e2;
-    --primary-hover: #3a7bcb;
-    --radius: 12px;
-    --shadow: 0 4px 14px rgba(0,0,0,0.08);
+    --primary: #5865F2;
+    --primary-hover: #4752c4;
+    --radius: 14px;
+    --shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 body {
     font-family: "Inter", Arial, sans-serif;
     background: var(--bg);
     margin: 0;
-    padding: 20px 40px;
+    padding: 30px 50px;
     color: var(--text);
 }
 
@@ -32,31 +32,48 @@ header {
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 25px;
+
+    background: rgba(255,255,255,0.7);
+    padding: 20px 25px;
+    border-radius: var(--radius);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+
+    margin-bottom: 30px;
 }
 
 header h1 {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 header .controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 15px;
+    gap: 14px;
+    margin-top: 10px;
 }
 
+/* ------------------ INPUTS ------------------ */
 input, select {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-radius: var(--radius);
-    border: 1px solid #d1d5db;
+    border: 1px solid #d6d6d6;
     background: white;
     font-size: 14px;
+    transition: 0.2s;
 }
 
+input:focus, select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 6px rgba(88,101,242,0.4);
+    outline: none;
+}
+
+/* ------------------ BUTTONS ------------------ */
 button {
-    padding: 10px 16px;
+    padding: 12px 18px;
     border: none;
     border-radius: var(--radius);
     cursor: pointer;
@@ -66,34 +83,42 @@ button {
     font-size: 14px;
     font-weight: 600;
 }
+
 button:hover {
     background: var(--primary-hover);
+    transform: translateY(-2px);
 }
 
 /* ------------------ CARDS ------------------ */
 .cards {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 22px;
 }
 
 .card {
     background: var(--card-bg);
-    padding: 20px;
+    padding: 25px;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    flex: 1 1 200px;
+    flex: 1 1 230px;
     text-align: center;
+    transition: 0.25s;
+}
+
+.card:hover {
+    transform: translateY(-4px);
 }
 
 .card h2 {
-    font-size: 30px;
-    margin: 0;
+    font-size: 34px;
+    margin: 0 0 6px;
     color: var(--primary);
+    font-weight: 800;
 }
 
 .card p {
-    margin: 5px 0 0;
+    margin: 0;
     font-size: 15px;
     color: var(--text-light);
 }
@@ -101,9 +126,9 @@ button:hover {
 /* ------------------ TABLE ------------------ */
 .table-container {
     background: var(--card-bg);
-    padding: 20px;
+    padding: 25px;
     border-radius: var(--radius);
-    margin-top: 25px;
+    margin-top: 30px;
     box-shadow: var(--shadow);
     overflow-x: auto;
 }
@@ -111,51 +136,63 @@ button:hover {
 table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 15px;
 }
 
-th {
-    padding: 12px;
-    background: #eef1f5;
+thead th {
+    padding: 14px;
+    background: #f3f4f8;
     text-align: left;
     font-weight: 600;
     cursor: pointer;
     color: #333;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+tbody tr:nth-child(even) {
+    background: #fafbff;
 }
 
 td {
     padding: 12px;
-    border-bottom: 1px solid #ececec;
+    border-bottom: 1px solid #e8e8e8;
 }
 
 tr:hover {
-    background: #f6f8fb;
+    background: #eef2ff;
+    transition: 0.2s;
 }
 
 /* Notas */
-.note-low { background-color: #ffe0e0 !important; }
-.note-medium { background-color: #fff3cc !important; }
-.note-high { background-color: #d9ffd9 !important; }
+.note-low  { background-color: #ffd9d9 !important; }
+note-medium { background-color: #fff3c4 !important; }
+.note-high { background-color: #ddffdd !important; }
 
 /* ------------------ CHART ------------------ */
 .chart-container {
-    margin-top: 30px;
+    margin-top: 35px;
     background: var(--card-bg);
-    padding: 25px;
+    padding: 30px;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    max-width: 900px;
+    max-width: 950px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* ------------------ TOOLTIP ------------------ */
 .tooltip {
     position: absolute;
-    background: #333;
+    background: #2c2c2c;
     color: white;
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
     font-size: 12px;
     display: none;
     z-index: 1000;
+    box-shadow: var(--shadow);
 }
 
 </style>
@@ -346,3 +383,4 @@ new Chart(document.getElementById('chart'), {
 </script>
 </body>
 </html>
+
