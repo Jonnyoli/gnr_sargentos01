@@ -73,6 +73,32 @@ def is_valid_url(url: Optional[str]) -> bool:
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 # -----------------------------
+# Função helper: obter usuário autenticado
+# -----------------------------
+def get_authenticated_user(request: Request) -> Optional[dict]:
+    """Retorna o user_info do Discord ou None se não autenticado."""
+    raw = request.cookies.get("discord_user")
+    if not raw:
+        return None
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, int):        # cookie antigo numérico
+            return {"id": str(data)}
+        elif isinstance(data, str):      # cookie antigo string
+            return {"id": data}
+        elif isinstance(data, dict):
+            return data
+    except Exception:
+        # Se não for JSON válido, tratamos como ID simples
+        return {"id": raw}
+
+    return None
+
+
+
+
+# -----------------------------
 # Rotas principais
 # -----------------------------
 @app.get("/", response_class=HTMLResponse)
@@ -144,17 +170,11 @@ async def logout():
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    raw = request.cookies.get("discord_user")
-    if not raw:
-        return RedirectResponse(url="/")
-
-    try:
-        user = json.loads(raw)
-    except:
-        return RedirectResponse(url="/")
+    user = get_authenticated_user(request)
+    if not user:
+        return RedirectResponse(url="/login/discord")  # força login
 
     user_id = user.get("id")
-
     if ADMINS and user_id not in ADMINS:
         return HTMLResponse("<h1>Acesso negado</h1>", status_code=403)
 
@@ -167,6 +187,7 @@ async def admin_panel(request: Request):
         "admin.html",
         {"request": request, "avaliacoes": avaliacoes}
     )
+
 
 # -----------------------------
 # Submit form atualizado para gravar Avaliador corretamente
@@ -204,38 +225,22 @@ async def submit_form(
     incidente_obs: str = Form(...)
 ):
     try:
-        raw = request.cookies.get("discord_user")
-        if not raw:
-            return JSONResponse(status_code=400, content={"error": "Utilizador não autenticado"})
-
-        try:
-            data = json.loads(raw)
-
-            # Se vier número → cookie antigo
-            if isinstance(data, int):
-                oauth_user = {"id": str(data)}
-            elif isinstance(data, str):
-                oauth_user = {"id": data}
-            else:
-                oauth_user = data
-
-        except Exception:
-            # Se não carregar JSON → deve ser ID simples
-            oauth_user = {"id": raw}
+        oauth_user = get_authenticated_user(request)
+        if not oauth_user:
+            return RedirectResponse(url="/login/discord")  # força login
 
         user_id = oauth_user.get("id")
-
         if not user_id:
             return JSONResponse(status_code=400, content={"error": "user_id inválido"})
 
-
-        # Dados do avaliador via OAuth (temporário) -> Podemos mudar para TOKEN
+        # Avaliador info
         avaliador_info = {
             "id": oauth_user.get("id"),
             "username": oauth_user.get("username") or "Desconhecido",
             "global_name": oauth_user.get("global_name") or "Desconhecido",
             "tag": f"@{oauth_user.get('username') or oauth_user.get('global_name') or 'Desconhecido'}"
         }
+
         from datetime import datetime
         data = {
             "avaliador": avaliador_info,
@@ -271,7 +276,6 @@ async def submit_form(
 
         if db:
             db.collection("avaliacoes").add(data)
-
         # webhook
         if DISCORD_WEBHOOK_URL:
             embed = {
@@ -305,28 +309,11 @@ async def submit_form(
 # EXPORT CSV
 # -----------------------------
 @app.get("/export_csv")
-async def export_csv(discord_user: str = Cookie(None)):
-    if not discord_user:
-        return RedirectResponse(url="/")
+async def export_csv(request: Request):
+    user = get_authenticated_user(request)
+    if not user:
+        return RedirectResponse(url="/login/discord")
 
-    try:
-        # Tentamos carregar como JSON
-        data = json.loads(discord_user)
-
-        # Se for um número (cookie antigo)
-        if isinstance(data, int):
-            user = {"id": str(data)}
-        elif isinstance(data, str):
-            # JSON válido mas devolve string? então é apenas o ID
-            user = {"id": data}
-        else:
-            user = data
-
-    except Exception:
-        # Se não for JSON válido, tratamos como ID simples
-        user = {"id": discord_user}
-
-    # Agora user SEMPRE tem user["id"]
     if ADMINS and user.get("id") not in ADMINS:
         return RedirectResponse(url="/")
 
@@ -347,10 +334,8 @@ async def export_csv(discord_user: str = Cookie(None)):
             ])
 
     output.seek(0)
-
     return StreamingResponse(
         output,
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"}
     )
-
