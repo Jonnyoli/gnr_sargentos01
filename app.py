@@ -140,10 +140,9 @@ async def discord_callback(code: str):
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
     r.raise_for_status()
-
     access_token = r.json()["access_token"]
 
-    # Busca dados completos do utilizador via OAuth
+    # Dados do usuário
     r2 = requests.get(
         "https://discord.com/api/v10/users/@me",
         headers={"Authorization": f"Bearer {access_token}"}
@@ -151,14 +150,17 @@ async def discord_callback(code: str):
     r2.raise_for_status()
     user_info = r2.json()
 
-    # Guarda o user_info inteiro
-    response = RedirectResponse(url="/admin")
+    # Guarda cookie
+    response = RedirectResponse(
+        url=f"/frontend/index.html?user_id={user_info['id']}"
+    )
     response.set_cookie(
         key="discord_user",
         value=json.dumps(user_info),
-        max_age=60 * 60 * 24 * 30  # 30 dias
+        max_age=60*60*24*30  # 30 dias
     )
     return response
+
 
 
 @app.get("/logout")
