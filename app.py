@@ -1,8 +1,8 @@
-# app.py — FastAPI + Firestore + Discord OAuth (atualizado)
 import os
 import requests
 import urllib.parse
 import csv
+import json
 from io import StringIO
 from typing import Optional
 from fastapi import FastAPI, Form, Request, Cookie
@@ -18,30 +18,17 @@ from firebase_admin import credentials, firestore
 # -----------------------------
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
-DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI") or (os.getenv("FRONTEND_URL") + "/callback" if os.getenv("FRONTEND_URL") else None)
+DISCORD_REDIRECT_URI = (
+    os.getenv("DISCORD_REDIRECT_URI")
+    or (os.getenv("FRONTEND_URL") + "/callback" if os.getenv("FRONTEND_URL") else None)
+)
 
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_TOKEN")           # usado para buscar info do utilizador via bot token
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")  # webhook para enviar notificações
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ADMINS = [a.strip() for a in os.getenv("ADMINS", "").split(",") if a.strip()]
 
-# Verificações iniciais — logs simples para debug em deploy
-required_envs = {
-    "DISCORD_CLIENT_ID": DISCORD_CLIENT_ID,
-    "DISCORD_CLIENT_SECRET": DISCORD_CLIENT_SECRET,
-    "DISCORD_REDIRECT_URI / FRONTEND_URL": DISCORD_REDIRECT_URI,
-    "FIRESTORE_PROJECT_ID": os.getenv("FIRESTORE_PROJECT_ID"),
-    "FIRESTORE_CLIENT_EMAIL": os.getenv("FIRESTORE_CLIENT_EMAIL"),
-    "FIRESTORE_PRIVATE_KEY": os.getenv("FIRESTORE_PRIVATE_KEY") is not None,
-    "FIRESTORE_PRIVATE_KEY_ID": os.getenv("FIRESTORE_PRIVATE_KEY_ID"),
-    "FIRESTORE_CLIENT_ID": os.getenv("FIRESTORE_CLIENT_ID"),
-}
-for k, v in required_envs.items():
-    if not v:
-        print(f"[WARN] Variável de ambiente ausente ou inválida: {k}")
-
 # -----------------------------
-# FIRESTORE (constrói o credential a partir de ENV)
+# FIRESTORE (a partir de ENV)
 # -----------------------------
 if os.getenv("FIRESTORE_PRIVATE_KEY"):
     service_account = {
@@ -63,10 +50,10 @@ if os.getenv("FIRESTORE_PRIVATE_KEY"):
             firebase_admin.initialize_app(cred)
         db = firestore.client()
     except Exception as e:
-        print("[ERRO] Não foi possível inicializar o Firebase:", e)
+        print("[ERRO] Firebase:", e)
         db = None
 else:
-    print("[ERRO] FIRESTORE_PRIVATE_KEY não definida. Firestore desactivado.")
+    print("[ERRO] FIRESTORE_PRIVATE_KEY não definida")
     db = None
 
 # -----------------------------
@@ -86,51 +73,35 @@ def is_valid_url(url: Optional[str]) -> bool:
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 # -----------------------------
-# Função para buscar usuário no Discord via Bot
-# -----------------------------
-def buscar_user_discord(user_id: Optional[str]):
-    if not user_id:
-        return {"id": None, "username": None, "global_name": None, "tag": None}
-
-    if not DISCORD_BOT_TOKEN:
-        return {"id": user_id, "username": None, "global_name": None, "tag": f"{user_id}"}
-
-    headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
-    try:
-        r = requests.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers, timeout=8)
-        r.raise_for_status()
-        data = r.json()
-        return {
-            "id": user_id,
-            "username": data.get("username"),
-            "global_name": data.get("global_name"),
-            "tag": f"{data.get('username')}#{data.get('discriminator')}" if data.get("username") and data.get("discriminator") else f"{user_id}"
-        }
-    except Exception as e:
-        print("[WARN] Falha ao buscar user via bot:", e)
-        return {"id": user_id, "username": None, "global_name": None, "tag": f"{user_id}"}
-
-# -----------------------------
-# Rotas básicas (home, login, logout, admin)
+# Rotas principais
 # -----------------------------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+
 @app.get("/login/discord")
 async def login_discord():
     if not is_valid_url(DISCORD_REDIRECT_URI):
         return HTMLResponse("<h1>Redirect URI inválido</h1>", status_code=500)
+
     params = {
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
         "response_type": "code",
         "scope": "identify"
     }
-    return RedirectResponse(f"https://discord.com/api/oauth2/authorize?{urllib.parse.urlencode(params)}")
+    return RedirectResponse(
+        f"https://discord.com/api/oauth2/authorize?{urllib.parse.urlencode(params)}"
+    )
 
+
+# -----------------------------
+# CALLBACK atualizada (guarda INFOS COMPLETAS)
+# -----------------------------
 @app.get("/callback")
 async def discord_callback(code: str):
+    # Troca o código por token
     data = {
         "client_id": DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
@@ -139,16 +110,30 @@ async def discord_callback(code: str):
         "redirect_uri": DISCORD_REDIRECT_URI,
         "scope": "identify"
     }
+
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers, timeout=10)
+    r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
     r.raise_for_status()
-    access_token = r.json().get("access_token")
-    r2 = requests.get("https://discord.com/api/v10/users/@me", headers={"Authorization": f"Bearer {access_token}"}, timeout=8)
+
+    access_token = r.json()["access_token"]
+
+    # Busca dados completos do utilizador via OAuth
+    r2 = requests.get(
+        "https://discord.com/api/v10/users/@me",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
     r2.raise_for_status()
     user_info = r2.json()
+
+    # Guarda o user_info inteiro
     response = RedirectResponse(url="/admin")
-    response.set_cookie(key="discord_user", value=user_info.get("id"))
+    response.set_cookie(
+        key="discord_user",
+        value=json.dumps(user_info),
+        max_age=60 * 60 * 24 * 30  # 30 dias
+    )
     return response
+
 
 @app.get("/logout")
 async def logout():
@@ -156,20 +141,32 @@ async def logout():
     response.delete_cookie("discord_user")
     return response
 
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    user_id = request.cookies.get("discord_user")
-    if not user_id:
+    raw = request.cookies.get("discord_user")
+    if not raw:
         return RedirectResponse(url="/")
+
+    try:
+        user = json.loads(raw)
+    except:
+        return RedirectResponse(url="/")
+
+    user_id = user.get("id")
+
     if ADMINS and user_id not in ADMINS:
         return HTMLResponse("<h1>Acesso negado</h1>", status_code=403)
+
     avaliacoes = []
     if db:
-        try:
-            avaliacoes = [doc.to_dict() for doc in db.collection("avaliacoes").stream()]
-        except Exception as e:
-            print("[WARN] Erro ao ler avaliações:", e)
-    return templates.TemplateResponse("admin.html", {"request": request, "avaliacoes": avaliacoes})
+        for doc in db.collection("avaliacoes").stream():
+            avaliacoes.append(doc.to_dict())
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {"request": request, "avaliacoes": avaliacoes}
+    )
 
 # -----------------------------
 # Submit form atualizado para gravar Avaliador corretamente
@@ -207,20 +204,24 @@ async def submit_form(
     incidente_obs: str = Form(...)
 ):
     try:
-        # Pega o ID do cookie se não veio via form
-        if not user_id:
-            user_id = request.cookies.get("discord_user")
-        if not user_id:
-            return JSONResponse(status_code=400, content={"error": "user_id ausente"})
+        raw = request.cookies.get("discord_user")
+        if not raw:
+            return JSONResponse(status_code=400, content={"error": "Utilizador não autenticado"})
 
-        # Obtém info do usuário (OAuth confiável)
-        avaliador_info = buscar_user_discord(user_id)
-        if not avaliador_info.get("username"):
-            # fallback: pega só o ID
-            avaliador_info["username"] = None
-            avaliador_info["global_name"] = None
-            avaliador_info["tag"] = user_id
+        oauth_user = json.loads(raw)
 
+        user_id = oauth_user.get("id")
+
+        if not user_id:
+            return JSONResponse(status_code=400, content={"error": "user_id inválido"})
+
+        # Dados do avaliador via OAuth (temporário) -> Podemos mudar para TOKEN
+        avaliador_info = {
+            "id": oauth_user.get("id"),
+            "username": oauth_user.get("username"),
+            "global_name": oauth_user.get("global_name"),
+            "tag": f"@{oauth_user.get('username')}"
+        }
         from datetime import datetime
         data = {
             "avaliador": avaliador_info,
@@ -287,11 +288,19 @@ async def submit_form(
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # -----------------------------
-# Export CSV
+# EXPORT CSV
 # -----------------------------
 @app.get("/export_csv")
 async def export_csv(discord_user: str = Cookie(None)):
-    if not discord_user or (ADMINS and discord_user not in ADMINS):
+    if not discord_user:
+        return RedirectResponse(url="/")
+
+    try:
+        user = json.loads(discord_user)
+    except:
+        return RedirectResponse(url="/")
+
+    if ADMINS and user.get("id") not in ADMINS:
         return RedirectResponse(url="/")
 
     output = StringIO()
@@ -299,20 +308,21 @@ async def export_csv(discord_user: str = Cookie(None)):
     writer.writerow(["Nome", "Tema", "Avaliador", "Nota Conduta", "Nota Detenção", "Nota Incidente"])
 
     if db:
-        try:
-            for doc in db.collection("avaliacoes").stream():
-                d = doc.to_dict()
-                writer.writerow([
-                    d.get("nome"),
-                    d.get("tema"),
-                    d.get("avaliador", {}).get("tag"),
-                    d.get("conduta"),
-                    d.get("nota_detencao"),
-                    d.get("nota_incidente")
-                ])
-        except Exception as e:
-            print("[WARN] export_csv error:", e)
+        for doc in db.collection("avaliacoes").stream():
+            d = doc.to_dict()
+            writer.writerow([
+                d.get("nome"),
+                d.get("tema"),
+                d.get("avaliador", {}).get("tag"),
+                d.get("conduta"),
+                d.get("nota_detencao"),
+                d.get("nota_incidente")
+            ])
 
     output.seek(0)
-    return StreamingResponse(output, media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"})
+
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=avaliacoes.csv"}
+    )
