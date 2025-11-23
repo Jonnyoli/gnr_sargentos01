@@ -296,10 +296,23 @@ async def export_csv(discord_user: str = Cookie(None)):
         return RedirectResponse(url="/")
 
     try:
-        user = json.loads(discord_user)
-    except:
-        return RedirectResponse(url="/")
+        # Tentamos carregar como JSON
+        data = json.loads(discord_user)
 
+        # Se for um número (cookie antigo)
+        if isinstance(data, int):
+            user = {"id": str(data)}
+        elif isinstance(data, str):
+            # JSON válido mas devolve string? então é apenas o ID
+            user = {"id": data}
+        else:
+            user = data
+
+    except Exception:
+        # Se não for JSON válido, tratamos como ID simples
+        user = {"id": discord_user}
+
+    # Agora user SEMPRE tem user["id"]
     if ADMINS and user.get("id") not in ADMINS:
         return RedirectResponse(url="/")
 
