@@ -6,78 +6,89 @@
 <title>Avaliação Completa</title>
 
 <style>
-  /* ===== Reset básico ===== */
+  /* ===== Reset ===== */
   * {
-    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-sizing: border-box;
+    font-family: "Segoe UI", sans-serif;
   }
 
   body {
-    background: #eef1f5;
-    padding: 25px 10px;
+    background: linear-gradient(135deg, #0d1117, #1b2838);
+    padding: 25px;
+    color: #fff;
   }
 
+  /* ===== Header estilo glassmorphism ===== */
   header {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
   }
 
   header a {
-    text-decoration: none;
+    backdrop-filter: blur(8px);
+    background: rgba(88,101,242,0.2);
+    border: 1px solid rgba(88,101,242,0.4);
+    padding: 12px 18px;
+    color: #fff;
+    border-radius: 12px;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #5865F2;
-    color: white;
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-weight: 600;
-    transition: 0.2s;
+    gap: 12px;
+    font-weight: bold;
+    transition: 0.25s;
   }
 
   header a:hover {
-    background: #4854c9;
+    background: rgba(88,101,242,0.4);
+    transform: scale(1.05);
   }
 
+  /* ===== Container principal ===== */
   .container {
     max-width: 900px;
     margin: auto;
-    background: #fff;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(12px);
     padding: 40px;
-    border-radius: 14px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 0 25px rgba(0,0,0,0.45);
   }
 
   h1 {
     text-align: center;
-    color: #1e1e1e;
     margin-bottom: 35px;
-    font-size: 2.2rem;
-    letter-spacing: -0.5px;
+    font-size: 2.3rem;
+    font-weight: 800;
+    background: linear-gradient(to right, #4ea6ff, #7bd6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* ===== Seções ===== */
+  /* ===== Cards ===== */
   .section-card {
-    background: #f9fafc;
     padding: 25px;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(78,166,255,0.2);
+    border-radius: 15px;
     margin-bottom: 30px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    border: 1px solid #e5e7eb;
+
+    /* Glow azul */
+    box-shadow: 0 0 15px rgba(78,166,255,0.35);
   }
 
   .section-card h2 {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     font-size: 1.35rem;
-    color: #0d6efd;
-    border-left: 5px solid #0d6efd;
+    font-weight: bold;
+    color: #7bd6ff;
+    border-left: 5px solid #4ea6ff;
     padding-left: 12px;
   }
 
-  /* ===== Formulário ===== */
+  /* ===== Inputs ===== */
   label {
     font-weight: 600;
     margin-bottom: 6px;
@@ -87,12 +98,18 @@
   input, textarea, select {
     width: 100%;
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #cfcfcf;
-    background: #f7f7f7;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.07);
+    color: #fff;
     margin-bottom: 18px;
     transition: 0.3s;
-    font-size: 15px;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: #4ea6ff;
+    box-shadow: 0 0 10px #4ea6ff;
+    outline: none;
   }
 
   textarea {
@@ -100,40 +117,40 @@
     min-height: 90px;
   }
 
-  input:focus, textarea:focus, select:focus {
-    background: #fff;
-    border-color: #0d6efd;
-    box-shadow: 0 0 6px rgba(13,110,253,0.25);
-    outline: none;
-  }
-
-  /* ===== Botão ===== */
+  /* ===== Botão neon ===== */
   button {
     width: 100%;
-    padding: 16px;
-    background: linear-gradient(90deg,#0d6efd,#0a58ca);
+    padding: 18px;
+    background: linear-gradient(90deg, #4ea6ff, #7bd6ff);
     border: none;
-    border-radius: 10px;
-    color: white;
-    font-size: 19px;
+    border-radius: 12px;
+    color: #000;
+    font-size: 20px;
+    font-weight: bold;
     cursor: pointer;
     margin-top: 10px;
-    transition: 0.25s;
+    transition: 0.3s;
+    box-shadow: 0 0 15px #4ea6ff;
   }
 
   button:hover {
-    background: linear-gradient(90deg,#0a58ca,#0947a3);
-    transform: translateY(-2px);
+    transform: scale(1.05);
+    box-shadow: 0 0 25px #7bd6ff;
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   #resultado {
     margin-top: 20px;
-    font-size: 17px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: bold;
     text-align: center;
   }
 
-  /* ===== Layout responsivo ===== */
+  /* ===== Grid ===== */
   .grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -163,164 +180,72 @@
   <form id="avaliacaoForm">
     <input type="hidden" id="user_id" name="user_id">
 
-    <!-- ====================== PARTE 1 ====================== -->
+    <!-- PARTE 1 -->
     <div class="section-card">
       <h2>📋 Parte 1 — Geral</h2>
-
       <div class="grid-2">
-        <div>
-          <label>Nome do avaliado *</label>
-          <input type="text" name="nome" required>
-        </div>
-
-        <div>
-          <label>Tema *</label>
-          <input type="text" name="tema" required>
-        </div>
-
-        <div>
-          <label>Avaliações já feitas *</label>
-          <input type="number" name="avaliacoes_feitas" required>
-        </div>
-
-        <div>
-          <label>Assaltos *</label>
-          <input type="number" name="assaltos" required>
-        </div>
-
-        <div>
-          <label>Abordagens *</label>
-          <input type="number" name="abordagens" required>
-        </div>
+        <div><label>Nome do avaliado *</label><input type="text" name="nome" required></div>
+        <div><label>Tema *</label><input type="text" name="tema" required></div>
+        <div><label>Avaliações já feitas *</label><input type="number" name="avaliacoes_feitas" required></div>
+        <div><label>Assaltos *</label><input type="number" name="assaltos" required></div>
+        <div><label>Abordagens *</label><input type="number" name="abordagens" required></div>
       </div>
     </div>
 
-    <!-- ====================== PARTE 2 ====================== -->
+    <!-- PARTE 2 -->
     <div class="section-card">
       <h2>📋 Parte 2 — Rádio e Conduta</h2>
-
       <div class="grid-2">
-        <div>
-          <label>Perseguições *</label>
-          <input type="number" name="perseg" required>
-        </div>
-
-        <div>
-          <label>Detenções *</label>
-          <input type="number" name="detencoes_count" required>
-        </div>
-
-        <div>
-          <label>Rádio (X/10) *</label>
-          <input type="number" max="10" min="0" name="radio" required>
-        </div>
-
-        <div>
-          <label>Conduta (X/10) *</label>
-          <input type="number" max="10" min="0" name="conduta" required>
-        </div>
+        <div><label>Perseguições *</label><input type="number" name="perseg" required></div>
+        <div><label>Detenções *</label><input type="number" name="detencoes_count" required></div>
+        <div><label>Rádio (X/10) *</label><input type="number" max="10" min="0" name="radio" required></div>
+        <div><label>Conduta (X/10) *</label><input type="number" max="10" min="0" name="conduta" required></div>
       </div>
-
       <label>Descrição Rádio *</label>
       <textarea name="radio_desc" required></textarea>
     </div>
 
-    <!-- ====================== PARTE 3 ====================== -->
+    <!-- PARTE 3 -->
     <div class="section-card">
       <h2>📋 Parte 3 — Detenção 1</h2>
-
       <label>Descrição da conduta *</label>
       <textarea name="conduta_desc" required></textarea>
-
       <div class="grid-2">
-        <div>
-          <label>Detenção (X/10) *</label>
-          <input type="number" max="10" min="0" name="nota_detencao" required>
-        </div>
-
-        <div>
-          <label>Leu os direitos? *</label>
-          <select name="det1_leu_direitos" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Identificou o sujeito? *</label>
-          <select name="det1_identificou" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Apreendeu objetos? *</label>
-          <select name="det1_apreendeu" required><option>Sim</option><option>Não</option></select>
-        </div>
+        <div><label>Detenção (X/10) *</label><input type="number" max="10" min="0" name="nota_detencao" required></div>
+        <div><label>Leu os direitos? *</label><select name="det1_leu_direitos" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Identificou o sujeito? *</label><select name="det1_identificou" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Apreendeu objetos? *</label><select name="det1_apreendeu" required><option>Sim</option><option>Não</option></select></div>
       </div>
     </div>
 
-    <!-- ====================== PARTE 4 ====================== -->
+    <!-- PARTE 4 -->
     <div class="section-card">
       <h2>📋 Parte 4 — Detenção 2</h2>
-
       <label>Descrição da conduta *</label>
       <textarea name="conduta_desc2" required></textarea>
-
       <div class="grid-2">
-        <div>
-          <label>Detenção (X/10) *</label>
-          <input type="number" max="10" min="0" name="nota_detencao2" required>
-        </div>
-
-        <div>
-          <label>Leu os direitos? *</label>
-          <select name="det2_leu_direitos" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Identificou sujeito? *</label>
-          <select name="det2_identificou" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Apreendeu objetos? *</label>
-          <select name="det2_apreendeu" required><option>Sim</option><option>Não</option></select>
-        </div>
+        <div><label>Detenção (X/10) *</label><input type="number" max="10" min="0" name="nota_detencao2" required></div>
+        <div><label>Leu os direitos? *</label><select name="det2_leu_direitos" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Identificou sujeito? *</label><select name="det2_identificou" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Apreendeu objetos? *</label><select name="det2_apreendeu" required><option>Sim</option><option>Não</option></select></div>
       </div>
     </div>
 
-    <!-- ====================== PARTE 5 ====================== -->
+    <!-- PARTE 5 -->
     <div class="section-card">
       <h2>📋 Parte 5 — Incidente</h2>
-
       <div class="grid-2">
-        <div>
-          <label>Nota do incidente *</label>
-          <input type="number" max="10" min="0" name="nota_incidente" required>
-        </div>
-
-        <div>
-          <label>Crimes cometidos *</label>
-          <select name="crimes_yesno" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Foto do sujeito *</label>
-          <select name="foto_yesno" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Seguiu layout? *</label>
-          <select name="layout_yesno" required><option>Sim</option><option>Não</option></select>
-        </div>
-
-        <div>
-          <label>Descrição correta? *</label>
-          <select name="descricao_yesno" required><option>Sim</option><option>Não</option></select>
-        </div>
+        <div><label>Nota do incidente *</label><input type="number" max="10" min="0" name="nota_incidente" required></div>
+        <div><label>Crimes cometidos *</label><select name="crimes_yesno" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Foto do sujeito *</label><select name="foto_yesno" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Seguiu layout? *</label><select name="layout_yesno" required><option>Sim</option><option>Não</option></select></div>
+        <div><label>Descrição correta? *</label><select name="descricao_yesno" required><option>Sim</option><option>Não</option></select></div>
       </div>
     </div>
 
-    <!-- ====================== PARTE 6 ====================== -->
+    <!-- PARTE 6 -->
     <div class="section-card">
       <h2>📋 Parte 6 — Finalização</h2>
-
       <label>Erros cometidos</label>
       <textarea name="incidente_erros"></textarea>
 
@@ -328,17 +253,15 @@
       <textarea name="incidente_obs" required></textarea>
     </div>
 
-	<button type="submit" id="submitBtn">Enviar Avaliação</button>
+    <button type="submit" id="submitBtn">Enviar Avaliação</button>
     <p id="resultado"></p>
   </form>
 </div>
 
 <script>
-  // pega user_id da URL
   const urlParams = new URLSearchParams(window.location.search);
   document.getElementById("user_id").value = urlParams.get("user_id");
 
-  // envio do formulário
   document.getElementById("avaliacaoForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -353,13 +276,11 @@
 
     if (res.ok) {
       result.textContent = "✅ Avaliação enviada!";
-      result.style.color = "green";
+      result.style.color = "#7bff9e";
     } else {
       const data = await res.json();
-      result.textContent = `❌ Erro: ${data.error || 'Não enviado'}`;
+      result.textContent = `❌ Erro: ${data.error || "Não enviado"}`;
       result.style.color = "red";
-
-      // reativa o botão se deu erro
       btn.disabled = false;
       btn.textContent = "Enviar Avaliação";
     }
