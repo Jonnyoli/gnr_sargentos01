@@ -194,183 +194,104 @@ note-medium { background-color: #fff3c4 !important; }
     z-index: 1000;
     box-shadow: var(--shadow);
 }
-
 </style>
-</head>
 
+</head>
 <body>
 
 <header>
     <h1>Painel Admin</h1>
-
-    <div class="controls">
-        <input type="text" id="search" placeholder="Buscar por nome">
-
-        <select id="filterTema">
-            <option value="">Todos os temas</option>
-            {% set temas = [] %}
-            {% for a in avaliacoes %}
-                {% set tema = a.get('tema') %}
-                {% if tema and tema not in temas %}
-                    {% set _ = temas.append(tema) %}
-                    <option value="{{ tema }}">{{ tema }}</option>
-                {% endif %}
-            {% endfor %}
-        </select>
-
-        <select id="filterAvaliador">
-            <option value="">Todos avaliadores</option>
-            {% set avaliadores = [] %}
-            {% for a in avaliacoes %}
-                {% set nickname = a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') %}
-                {% if nickname and nickname not in avaliadores %}
-                    {% set _ = avaliadores.append(nickname) %}
-                    <option value="{{ nickname }}">{{ nickname }}</option>
-                {% endif %}
-            {% endfor %}
-        </select>
-
-        <input type="date" id="filterFrom">
-        <input type="date" id="filterTo">
-
+    <div>
+        <input type="text" id="search" placeholder="Buscar por nome, tema ou avaliador">
         <button onclick="exportCSV()">Exportar CSV</button>
         <button onclick="logout()">Logout</button>
     </div>
 </header>
 
-<div class="cards">
-    <div class="card"><h2>{{ avaliacoes|length }}</h2><p>Total Avaliações</p></div>
-    <div class="card"><h2>{{ avaliacoes|map(attribute='conduta')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Conduta</p></div>
-    <div class="card"><h2>{{ avaliacoes|map(attribute='nota_detencao')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Detenção</p></div>
-    <div class="card"><h2>{{ avaliacoes|map(attribute='nota_incidente')|sum / (avaliacoes|length) | round(1) }}</h2><p>Média Incidente</p></div>
-</div>
-
-<div class="table-container">
-    <table id="tableAvaliacoes">
-        <thead>
-            <tr>
-                <th onclick="sortTable(0)">Nome</th>
-                <th onclick="sortTable(1)">Tema</th>
-                <th onclick="sortTable(2)">Avaliador</th>
-                <th onclick="sortTable(3)">Data</th>
-                <th onclick="sortTable(4)">Conduta</th>
-                <th onclick="sortTable(5)">Detenção</th>
-                <th onclick="sortTable(6)">Incidente</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            {% for a in avaliacoes %}
-            <tr title="Observação: {{ a.get('incidente_obs', 'Nenhuma') }}">
-                <td>{{ a.get('nome', 'N/A') }}</td>
-                <td>{{ a.get('tema', 'N/A') }}</td>
-                <td>{{ a.get('avaliador', {}).get('global_name') or a.get('avaliador', {}).get('username') or 'Desconhecido' }}</td>
-                <td>
-                    {% if a.get('data_submissao') %}
-                        {{ a.data_submissao.strftime('%d/%m/%Y %H:%M') }}
-                    {% else %}-{% endif %}
-                </td>
-
-                <td class="{% if a.get('conduta',0) <5 %}note-low{% elif a.get('conduta',0) <8 %}note-medium{% else %}note-high{% endif %}">
-                    {{ a.get('conduta',0) }}
-                </td>
-
-                <td class="{% if a.get('nota_detencao',0) <5 %}note-low{% elif a.get('nota_detencao',0) <8 %}note-medium{% else %}note-high{% endif %}">
-                    {{ a.get('nota_detencao',0) }}
-                </td>
-
-                <td class="{% if a.get('nota_incidente',0) <5 %}note-low{% elif a.get('nota_incidente',0) <8 %}note-medium{% else %}note-high{% endif %}">
-                    {{ a.get('nota_incidente',0) }}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<table id="tableAvaliacoes">
+    <thead>
+        <tr>
+            <th onclick="sortTable(0)">Nome</th>
+            <th onclick="sortTable(1)">Tema</th>
+            <th onclick="sortTable(2)">Avaliador</th>
+            <th onclick="sortTable(3)">Nota Conduta</th>
+            <th onclick="sortTable(4)">Nota Detenção</th>
+            <th onclick="sortTable(5)">Nota Incidente</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in avaliacoes %}
+        <tr>
+            <td>{{ a.get('nome', 'N/A') }}</td>
+            <td>{{ a.get('tema', 'N/A') }}</td>
+            <td>{{ a.get('avaliador', {}).get('tag', 'Desconhecido') }}</td>
+            <td>{{ a.get('conduta', 0) }}</td>
+            <td>{{ a.get('nota_detencao', 0) }}</td>
+            <td>{{ a.get('nota_incidente', 0) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 <div class="chart-container">
     <canvas id="chart"></canvas>
 </div>
 
 <script>
-// ------------------- PARSE DE DATAS -------------------
-function parseTableDate(str) {
-    if (!str || str === "-") return null;
-    let [day, month, year] = str.split(' ')[0].split('/');
-    return new Date(year, month-1, day); // mês começa em 0
-}
-
-// ------------------- FILTRO AVANÇADO -------------------
-function applyFilters() {
-    const search = document.getElementById("search").value.toLowerCase();
-    const tema = document.getElementById("filterTema").value;
-    const avaliador = document.getElementById("filterAvaliador").value;
-    const fromDate = document.getElementById("filterFrom").value ? new Date(document.getElementById("filterFrom").value) : null;
-    const toDate = document.getElementById("filterTo").value ? new Date(document.getElementById("filterTo").value) : null;
-
+// ------------------- FILTRO -------------------
+document.getElementById("search").addEventListener("input", function() {
+    const filter = this.value.toLowerCase();
     const rows = document.querySelectorAll("#tableAvaliacoes tbody tr");
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        const rowTema = row.cells[1].innerText;
-        const rowAvaliador = row.cells[2].innerText;
-        const rowDateObj = parseTableDate(row.cells[3].innerText);
-
-        let show = text.includes(search);
-        if (tema) show = show && rowTema === tema;
-        if (avaliador) show = show && rowAvaliador === avaliador;
-
-        if (rowDateObj) {
-            if (fromDate) show = show && (rowDateObj >= fromDate);
-            if (toDate) show = show && (rowDateObj <= toDate);
-        } else if (fromDate || toDate) {
-            show = false;
-        }
-
-        row.style.display = show ? "" : "none";
+        row.style.display = text.includes(filter) ? "" : "none";
     });
-}
-
-document.getElementById("search").addEventListener("input", applyFilters);
-document.getElementById("filterTema").addEventListener("change", applyFilters);
-document.getElementById("filterAvaliador").addEventListener("change", applyFilters);
-document.getElementById("filterFrom").addEventListener("change", applyFilters);
-document.getElementById("filterTo").addEventListener("change", applyFilters);
+});
 
 // ------------------- ORDENAR TABELA -------------------
 function sortTable(colIndex) {
     const table = document.getElementById("tableAvaliacoes");
-    let switching = true, dir = "asc";
+    let switching = true;
+    let dir = "asc";
     while (switching) {
         switching = false;
         const rows = table.rows;
-        for (let i=1; i<rows.length-1; i++) {
-            let x=rows[i].cells[colIndex].innerText, y=rows[i+1].cells[colIndex].innerText;
-            if(!isNaN(x) && !isNaN(y)){x=parseFloat(x);y=parseFloat(y);}
-            let shouldSwitch = dir==="asc"? x>y:x<y;
-            if(shouldSwitch){rows[i].parentNode.insertBefore(rows[i+1], rows[i]); switching=true;}
+        for (let i = 1; i < rows.length - 1; i++) {
+            let x = rows[i].cells[colIndex].innerText;
+            let y = rows[i + 1].cells[colIndex].innerText;
+            if (!isNaN(x) && !isNaN(y)) { x = parseFloat(x); y = parseFloat(y); }
+            let shouldSwitch = dir === "asc" ? x > y : x < y;
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+            }
         }
-        if(!switching && dir==="asc") dir="desc", switching=true;
+        if (!switching && dir === "asc") dir = "desc", switching = true;
     }
 }
 
-// ------------------- EXPORT & LOGOUT -------------------
-function exportCSV(){ window.location.href="/export_csv"; }
-function logout(){ window.location.href="/frontend/index.html"; }
+// ------------------- EXPORT CSV -------------------
+function exportCSV() { window.location.href = "/export_csv"; }
 
-// ------------------- GRÁFICO INTERATIVO -------------------
+// ------------------- LOGOUT -------------------
+function logout() { window.location.href = "/frontend/index.html"; }
+
+// ------------------- GRÁFICO -------------------
 const data = {
-    labels: [{% for a in avaliacoes %}"{{ a.get('nome','N/A') }}",{% endfor %}],
+    labels: [
+        {% for a in avaliacoes %}"{{ a.get('nome', 'N/A') }}",{% endfor %}
+    ],
     datasets: [{
         label: 'Nota Conduta',
-        data: [{% for a in avaliacoes %}{{ a.get('conduta',0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('conduta', 0) }},{% endfor %}],
         backgroundColor: 'rgba(54, 162, 235, 0.5)'
     },{
         label: 'Nota Detenção',
-        data: [{% for a in avaliacoes %}{{ a.get('nota_detencao',0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('nota_detencao', 0) }},{% endfor %}],
         backgroundColor: 'rgba(255, 99, 132, 0.5)'
     },{
         label: 'Nota Incidente',
-        data: [{% for a in avaliacoes %}{{ a.get('nota_incidente',0) }},{% endfor %}],
+        data: [{% for a in avaliacoes %}{{ a.get('nota_incidente', 0) }},{% endfor %}],
         backgroundColor: 'rgba(75, 192, 192, 0.5)'
     }]
 };
@@ -378,9 +299,9 @@ const data = {
 new Chart(document.getElementById('chart'), {
     type: 'bar',
     data: data,
-    options: { responsive:true, scales:{ y:{ beginAtZero:true, max:10 } } }
+    options: { responsive: true, scales: { y: { beginAtZero: true, max: 10 } } }
 });
 </script>
+
 </body>
 </html>
-
